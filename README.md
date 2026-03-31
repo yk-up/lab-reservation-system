@@ -12,7 +12,6 @@
 | 后端 | Spring Boot 3.2 + MyBatis + MySQL 8.0 |
 | 鉴权 | JWT（jjwt 0.11） |
 | 连接池 | HikariCP |
-| 部署 | 阿里云服务器 |
 
 ---
 
