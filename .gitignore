@@ -1,0 +1,22 @@
+# Maven 编译产物
+backend/target/
+*.class
+*.jar
+*.war
+
+# 前端依赖
+frontend/node_modules/
+frontend/dist/
+
+# IDE 配置
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# 环境配置（含密码，不提交）
+# application-prod.yml
+
+# 日志
+*.log
+logs/

@@ -1,0 +1,45 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/lab_reservation?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: root
+    password: your_password_here
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # HikariCP 连接池配置
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
+
+  # 关闭 Spring Security 默认表单登录，仅保留密码编码器
+  security:
+    user:
+      name: disabled
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# JWT 配置
+jwt:
+  secret: lab-reservation-system-jwt-secret-key-2024-very-long-string
+  expiration: 86400000   # 24小时（毫秒）
+  header: Authorization
+  prefix: "Bearer "
+
+# 跨域允许（开发环境）
+cors:
+  allowed-origins: "http://localhost:5173,http://localhost:3000"
+
+logging:
+  level:
+    com.lab.reservation: debug

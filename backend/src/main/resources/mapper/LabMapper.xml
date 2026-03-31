@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lab.reservation.mapper.LabMapper">
+
+    <resultMap id="LabMap" type="com.lab.reservation.entity.Lab">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="location" column="location"/>
+        <result property="capacity" column="capacity"/>
+        <result property="description" column="description"/>
+        <result property="status" column="status"/>
+        <result property="adminId" column="admin_id"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="LabMap">
+        SELECT * FROM lab
+        <where>
+            <if test="status != null">AND status = #{status}</if>
+        </where>
+        ORDER BY id ASC
+    </select>
+
+    <select id="findById" resultMap="LabMap">
+        SELECT * FROM lab WHERE id = #{id} LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO lab (name, location, capacity, description, status, admin_id)
+        VALUES (#{name}, #{location}, #{capacity}, #{description}, #{status}, #{adminId})
+    </insert>
+
+    <update id="update">
+        UPDATE lab
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="location != null">location = #{location},</if>
+            <if test="capacity != null">capacity = #{capacity},</if>
+            <if test="description != null">description = #{description},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE lab SET status = #{status} WHERE id = #{id}
+    </update>
+
+</mapper>
