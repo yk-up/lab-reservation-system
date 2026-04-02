@@ -25,7 +25,8 @@ public class UserContext {
     }
 
     public static boolean isAdmin() {
-        return Integer.valueOf(1).equals(roleHolder.get());
+        Integer role = roleHolder.get();
+        return role != null && role == 1;
     }
 
     public static void clear() {

@@ -8,11 +8,13 @@ import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtInterceptor implements HandlerInterceptor {
@@ -23,9 +25,9 @@ public class JwtInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         String header = request.getHeader("Authorization");
+        // 没有携带 token，放行（Controller 内部自行判断是否需要权限）
         if (!StringUtils.hasText(header) || !header.startsWith("Bearer ")) {
-            writeUnauthorized(response);
-            return false;
+            return true;
         }
 
         String token = header.substring(7);
@@ -34,8 +36,11 @@ public class JwtInterceptor implements HandlerInterceptor {
                 writeUnauthorized(response);
                 return false;
             }
-            UserContext.setUserId(jwtUtil.getUserId(token));
-            UserContext.setRole(jwtUtil.getRole(token));
+            Long userId = jwtUtil.getUserId(token);
+            Integer role = jwtUtil.getRole(token);
+            log.debug("JWT解析 - userId={}, role={}", userId, role);
+            UserContext.setUserId(userId);
+            UserContext.setRole(role);
             return true;
         } catch (JwtException e) {
             writeUnauthorized(response);
