@@ -1,0 +1,153 @@
+/* ===== 全局重置 ===== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* rem 基准：1rem = 16px，移动端通过 meta viewport 控制缩放 */
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue',
+               'Microsoft YaHei', sans-serif;
+  background-color: #f5f7fa;
+  color: #303133;
+  line-height: 1.6;
+}
+
+/* ===== 移动端适配：flex 布局基础 ===== */
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* 页面容器：最大宽度限制，居中 */
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+  width: 100%;
+}
+
+/* 卡片通用样式 */
+.card {
+  background: #fff;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* ===== 底部导航栏（移动端） ===== */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3.5rem;
+  background: #fff;
+  border-top: 1px solid #ebeef5;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 100;
+  /* iOS 安全区域适配 */
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.bottom-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.625rem;
+  color: #909399;
+  cursor: pointer;
+  padding: 0.3rem 0;
+  transition: color 0.2s;
+}
+
+.bottom-nav-item.active {
+  color: #409eff;
+}
+
+.bottom-nav-item .nav-icon {
+  font-size: 1.375rem;
+}
+
+/* 底部导航占位 */
+.has-bottom-nav {
+  padding-bottom: 4rem;
+}
+
+/* ===== 响应式断点 ===== */
+/* 移动端：< 768px */
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+
+  .page-container {
+    padding: 0.75rem;
+  }
+
+  .hide-mobile {
+    display: none !important;
+  }
+
+  /* 表格在移动端转为卡片展示 */
+  .el-table {
+    font-size: 0.75rem;
+  }
+}
+
+/* 平板：768px ~ 1024px */
+@media (min-width: 768px) and (max-width: 1024px) {
+  html {
+    font-size: 15px;
+  }
+}
+
+/* 桌面端：> 1024px：隐藏底部导航 */
+@media (min-width: 1024px) {
+  .bottom-nav {
+    display: none;
+  }
+
+  .has-bottom-nav {
+    padding-bottom: 0;
+  }
+}
+
+/* ===== 状态标签颜色 ===== */
+.status-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-pending  { background: #fdf6ec; color: #e6a23c; }
+.status-approved { background: #f0f9eb; color: #67c23a; }
+.status-rejected { background: #fef0f0; color: #f56c6c; }
+.status-canceled { background: #f4f4f5; color: #909399; }
+.status-finished { background: #ecf5ff; color: #409eff; }
+
+/* ===== 工具类 ===== */
+.text-center  { text-align: center; }
+.text-right   { text-align: right; }
+.mt-1  { margin-top: 0.5rem; }
+.mt-2  { margin-top: 1rem; }
+.mt-3  { margin-top: 1.5rem; }
+.mb-1  { margin-bottom: 0.5rem; }
+.mb-2  { margin-bottom: 1rem; }
+.flex  { display: flex; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.gap-1 { gap: 0.5rem; }
+.gap-2 { gap: 1rem; }
