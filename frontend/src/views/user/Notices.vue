@@ -36,37 +36,65 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 import { noticeApi } from '@/api'
+import { useUserStore } from '@/store/user'
 
+const userStore = useUserStore()
 const loading = ref(true)
 const notices = ref([])
+let timer = null
 
 const typeIcon = (t) => ({ 1: 'CircleCheckFilled', 2: 'CircleCloseFilled', 3: 'AlarmClock', 4: 'Bell' }[t] || 'Bell')
 const typeColor = (t) => ({ 1: '#67c23a', 2: '#f56c6c', 3: '#e6a23c', 4: '#409eff' }[t] || '#909399')
 const formatTime = (t) => t ? dayjs(t).format('MM-DD HH:mm') : ''
 
+async function loadNotices() {
+  const res = await noticeApi.list()
+  notices.value = res.data || []
+}
+
+async function loadUnread() {
+  const previousCount = userStore.unreadCount
+  const res = await noticeApi.unreadCount()
+  const nextCount = res.data || 0
+  userStore.setUnreadCount(nextCount)
+
+  if (nextCount !== previousCount) {
+    await loadNotices()
+  }
+}
+
 async function markRead(n) {
   if (n.isRead === 1) return
   n.isRead = 1
+  userStore.setUnreadCount(userStore.unreadCount - 1)
   noticeApi.read(n.id).catch(() => {})
 }
 
 async function readAll() {
   await noticeApi.readAll()
   notices.value.forEach(n => { n.isRead = 1 })
+  userStore.setUnreadCount(0)
   ElMessage.success('已全部标为已读')
 }
 
 onMounted(async () => {
   try {
-    const res = await noticeApi.list()
-    notices.value = res.data || []
+    await loadNotices()
+    await loadUnread()
+    timer = setInterval(() => {
+      loadUnread().catch(() => {})
+    }, 30000)
   } finally {
     loading.value = false
   }
+})
+
+onUnmounted(() => {
+  clearInterval(timer)
 })
 </script>
 

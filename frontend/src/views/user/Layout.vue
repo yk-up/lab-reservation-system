@@ -12,7 +12,7 @@
           <router-link to="/my-reservations">我的预约</router-link>
           <router-link to="/notices">
             消息通知
-            <el-badge v-if="unreadCount > 0" :value="unreadCount" :max="99" />
+            <el-badge v-if="userStore.unreadCount > 0" :value="userStore.unreadCount" :max="99" />
           </router-link>
         </nav>
         <div class="nav-user" v-if="userStore.isLoggedIn">
@@ -56,8 +56,8 @@
         <el-icon class="nav-icon"><component :is="item.icon" /></el-icon>
         <span>{{ item.label }}</span>
         <el-badge
-          v-if="item.badge && unreadCount > 0"
-          :value="unreadCount"
+          v-if="item.badge && userStore.unreadCount > 0"
+          :value="userStore.unreadCount"
           :max="99"
           class="notice-badge"
         />
@@ -67,9 +67,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
 import { School, ArrowDown } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import { noticeApi } from '@/api'
@@ -77,7 +77,7 @@ import { noticeApi } from '@/api'
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
-const unreadCount = ref(0)
+let timer = null
 
 const navItems = [
   { path: '/labs', label: '实验室', icon: 'OfficeBuilding' },
@@ -107,15 +107,46 @@ function handleCommand(cmd) {
   }
 }
 
-async function fetchUnreadCount() {
-  if (!userStore.isLoggedIn) return
+function openNoticePage() {
+  if (route.path !== '/notices') {
+    router.push('/notices')
+  }
+}
+
+async function fetchUnreadCount(showToast = false) {
+  if (!userStore.isLoggedIn) {
+    userStore.setUnreadCount(0)
+    return
+  }
   try {
+    const previousCount = userStore.unreadCount
     const res = await noticeApi.unreadCount()
-    unreadCount.value = res.data || 0
+    const nextCount = res.data || 0
+    userStore.setUnreadCount(nextCount)
+
+    if (showToast && nextCount > previousCount) {
+      const diff = nextCount - previousCount
+      ElNotification({
+        title: '新消息提醒',
+        message: `你有 ${diff} 条新通知，点击查看`,
+        type: 'info',
+        duration: 3000,
+        onClick: openNoticePage
+      })
+    }
   } catch {}
 }
 
-onMounted(fetchUnreadCount)
+onMounted(async () => {
+  await fetchUnreadCount(false)
+  timer = setInterval(() => {
+    fetchUnreadCount(true).catch(() => {})
+  }, 30000)
+})
+
+onUnmounted(() => {
+  clearInterval(timer)
+})
 </script>
 
 <style scoped>
