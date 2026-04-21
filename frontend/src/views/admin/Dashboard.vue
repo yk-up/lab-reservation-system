@@ -16,7 +16,16 @@
       <h3 style="margin-bottom: 1rem; font-size: 1rem; font-weight: 600;">待审核预约</h3>
       <el-table :data="pendingList" stripe style="width: 100%">
         <el-table-column prop="id" label="ID" width="70" />
+        <el-table-column label="申请人" width="180">
+          <template #default="{ row }">
+            <div>{{ row.realName || '-' }}</div>
+            <div style="font-size: 12px; color: #909399;">{{ row.username || row.userId }}</div>
+          </template>
+        </el-table-column>
         <el-table-column prop="title" label="预约用途" min-width="150" show-overflow-tooltip />
+        <el-table-column label="实验室" width="140">
+          <template #default="{ row }">{{ row.labName || `实验室 #${row.labId}` }}</template>
+        </el-table-column>
         <el-table-column label="时间" min-width="180">
           <template #default="{ row }">
             {{ formatDateTime(row.startTime) }} ~ {{ formatTime(row.endTime) }}

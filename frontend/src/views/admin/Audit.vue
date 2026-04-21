@@ -8,9 +8,15 @@
     <div class="card">
       <el-table :data="list" stripe v-loading="loading" style="width: 100%">
         <el-table-column prop="id" label="ID" width="70" />
+        <el-table-column label="申请人" width="180">
+          <template #default="{ row }">
+            <div>{{ row.realName || '-' }}</div>
+            <div style="font-size: 12px; color: #909399;">{{ row.username || row.userId }}</div>
+          </template>
+        </el-table-column>
         <el-table-column prop="title" label="预约用途" min-width="150" show-overflow-tooltip />
-        <el-table-column label="实验室" width="120">
-          <template #default="{ row }">实验室 #{{ row.labId }}</template>
+        <el-table-column label="实验室" width="140">
+          <template #default="{ row }">{{ row.labName || `实验室 #${row.labId}` }}</template>
         </el-table-column>
         <el-table-column label="预约时间" min-width="190">
           <template #default="{ row }">
