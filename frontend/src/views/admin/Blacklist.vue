@@ -8,6 +8,12 @@
     <div class="card">
       <el-table :data="list" stripe v-loading="loading" style="width: 100%">
         <el-table-column prop="userId" label="用户ID" width="90" />
+        <el-table-column label="申请人" width="180">
+          <template #default="{ row }">
+            <div>{{ row.realName || '-' }}</div>
+            <div style="font-size: 12px; color: #909399;">{{ row.username || row.userId }}</div>
+          </template>
+        </el-table-column>
         <el-table-column prop="reason" label="封禁原因" min-width="200" show-overflow-tooltip />
         <el-table-column label="到期时间" width="160">
           <template #default="{ row }">
@@ -69,7 +75,11 @@ const addForm = reactive({ userId: null, reason: '', expireTime: null })
 const formatDateTime = (t) => t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-'
 
 async function removeFromBlacklist(row) {
-  await ElMessageBox.confirm(`确认解封用户 ID ${row.userId}？`, '解封确认', { type: 'warning' })
+  await ElMessageBox.confirm(
+    `确认解封用户 ${row.realName || '-'}（${row.username || row.userId}）？`,
+    '解封确认',
+    { type: 'warning' }
+  )
   await adminApi.removeBlacklist(row.id)
   list.value = list.value.filter(r => r.id !== row.id)
   ElMessage.success('已解封')
