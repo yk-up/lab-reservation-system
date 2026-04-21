@@ -127,15 +127,15 @@ CREATE TABLE IF NOT EXISTS `statistics_log` (
 
 -- 初始化测试数据
 INSERT INTO `user` (`username`, `password`, `real_name`, `role`) VALUES
-('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBpwTTyGGe/GKi', '系统管理员', 1),
-('student001', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBpwTTyGGe/GKi', '张三', 0),
-('student002', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBpwTTyGGe/GKi', '李四', 0);
+('admin', '$2a$10$jQT7P9TkAWn0AYqMZ9MwneSsk7SEuaxqfjwQsXyH4M1KbgRnn4Rzm', '系统管理员', 1),
+('student001', '$2a$10$jQT7P9TkAWn0AYqMZ9MwneSsk7SEuaxqfjwQsXyH4M1KbgRnn4Rzm', '张三', 0),
+('student002', '$2a$10$jQT7P9TkAWn0AYqMZ9MwneSsk7SEuaxqfjwQsXyH4M1KbgRnn4Rzm', '李四', 0);
 -- 默认密码均为 123456（BCrypt加密）
 
 INSERT INTO `lab` (`name`, `location`, `capacity`, `description`, `admin_id`) VALUES
 ('计算机实验室A', '教学楼3楼301', 40, '配备高性能工作站，适合编程实践', 1),
 ('网络技术实验室', '教学楼3楼302', 30, '配备网络设备，适合网络实验', 1),
-('软件工程实验室', '教学楼4楼401', 35, '用于软件开发与测试', 1);
+('软件工程实验室', '教学楼4楼4 01', 35, '用于软件开发与测试', 1);
 
 INSERT INTO `time_slot` (`lab_id`, `week_day`, `start_time`, `end_time`) VALUES
 (1, 1, '08:00:00', '12:00:00'), (1, 1, '14:00:00', '18:00:00'),
