@@ -7,6 +7,9 @@
         <id property="id" column="id"/>
         <result property="userId" column="user_id"/>
         <result property="labId" column="lab_id"/>
+        <result property="labName" column="lab_name"/>
+        <result property="username" column="username"/>
+        <result property="realName" column="real_name"/>
         <result property="title" column="title"/>
         <result property="startTime" column="start_time"/>
         <result property="endTime" column="end_time"/>
@@ -33,7 +36,12 @@
     </select>
 
     <select id="findPendingList" resultMap="ReservationMap">
-        SELECT * FROM reservation WHERE status = 0 ORDER BY create_time ASC
+        SELECT r.*, l.name AS lab_name, u.username, u.real_name
+        FROM reservation r
+        LEFT JOIN `lab` l ON l.id = r.lab_id
+        LEFT JOIN `user` u ON u.id = r.user_id
+        WHERE r.status = 0
+        ORDER BY r.create_time ASC
     </select>
 
     <select id="findByLabAndTimeRange" resultMap="ReservationMap">

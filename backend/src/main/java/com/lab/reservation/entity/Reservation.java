@@ -8,6 +8,9 @@ public class Reservation {
     private Long id;
     private Long userId;
     private Long labId;
+    private String labName;
+    private String username;
+    private String realName;
     private String title;
     private LocalDateTime startTime;
     private LocalDateTime endTime;

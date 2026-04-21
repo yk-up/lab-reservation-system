@@ -6,6 +6,8 @@
     <resultMap id="BlacklistMap" type="com.lab.reservation.entity.Blacklist">
         <id property="id" column="id"/>
         <result property="userId" column="user_id"/>
+        <result property="username" column="username"/>
+        <result property="realName" column="real_name"/>
         <result property="reason" column="reason"/>
         <result property="operatorId" column="operator_id"/>
         <result property="expireTime" column="expire_time"/>
@@ -27,7 +29,10 @@
     </select>
 
     <select id="findAll" resultMap="BlacklistMap">
-        SELECT * FROM blacklist ORDER BY create_time DESC
+        SELECT b.*, u.username, u.real_name
+        FROM blacklist b
+        LEFT JOIN `user` u ON u.id = b.user_id
+        ORDER BY b.create_time DESC
     </select>
 
     <delete id="deleteById">
