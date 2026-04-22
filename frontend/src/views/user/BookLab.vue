@@ -7,7 +7,6 @@
     </div>
 
     <div class="book-layout">
-      <!-- 左侧：实验室信息 + 日历 -->
       <div class="book-left">
         <div class="card mb-2" v-if="lab">
           <div class="lab-info-header">
@@ -24,7 +23,6 @@
           </div>
         </div>
 
-        <!-- 日历选择日期 -->
         <div class="card">
           <h4 class="section-title">选择日期</h4>
           <el-calendar v-model="selectedDate" @change="onDateChange">
@@ -37,9 +35,7 @@
         </div>
       </div>
 
-      <!-- 右侧：时段展示 + 表单 -->
       <div class="book-right">
-        <!-- 空闲时段展示 -->
         <div class="card mb-2">
           <h4 class="section-title">
             {{ formatDate(selectedDate) }} 空闲时段
@@ -70,9 +66,15 @@
           </div>
         </div>
 
-        <!-- 预约表单 -->
         <div class="card">
           <h4 class="section-title">填写预约信息</h4>
+          <el-alert
+            type="info"
+            :closable="false"
+            show-icon
+            style="margin-bottom: 12px"
+            title="请选择未来时间，单次预约时长 30 分钟到 8 小时之间，参与人数不能超过实验室容量。"
+          />
           <el-form :model="form" :rules="rules" ref="formRef" label-position="top">
             <el-form-item label="预约用途" prop="title">
               <el-input v-model="form.title" placeholder="简要说明预约用途，如：毕业设计实验" maxlength="100" show-word-limit />
@@ -85,7 +87,10 @@
                     type="datetime"
                     placeholder="开始时间"
                     format="MM-DD HH:mm"
+                    value-format="YYYY-MM-DDTHH:mm:ss"
                     :disabled-date="disabledDate"
+                    :disabled-hours="disabledHours"
+                    :disabled-minutes="disabledMinutes"
                     style="width: 100%"
                   />
                 </el-form-item>
@@ -97,25 +102,28 @@
                     type="datetime"
                     placeholder="结束时间"
                     format="MM-DD HH:mm"
+                    value-format="YYYY-MM-DDTHH:mm:ss"
                     :disabled-date="disabledDate"
+                    :disabled-hours="disabledHours"
+                    :disabled-minutes="disabledMinutes"
                     style="width: 100%"
                   />
                 </el-form-item>
               </el-col>
             </el-row>
 
-            <!-- 实时冲突提示 -->
             <div v-if="conflictTip" class="conflict-tip">
               <el-icon color="#f56c6c"><WarningFilled /></el-icon>
               {{ conflictTip }}
             </div>
-            <div v-else-if="form.startTime && form.endTime && !conflictTip" class="ok-tip">
+            <div v-else-if="form.startTime && form.endTime" class="ok-tip">
               <el-icon color="#67c23a"><CircleCheckFilled /></el-icon>
               该时段暂无冲突，可以预约
             </div>
 
             <el-form-item label="参与人数" prop="attendees">
               <el-input-number v-model="form.attendees" :min="1" :max="lab?.capacity || 100" />
+              <div class="field-tip">当前实验室最多容纳 {{ lab?.capacity || '-' }} 人，请合理填写参与人数。</div>
             </el-form-item>
             <el-form-item label="备注说明">
               <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="选填" />
@@ -138,7 +146,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, computed } from 'vue'
+import { ref, reactive, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Refresh, Loading, WarningFilled, CircleCheckFilled } from '@element-plus/icons-vue'
@@ -159,12 +167,11 @@ const formRef = ref()
 const submitting = ref(false)
 const conflictTip = ref('')
 const selectedStartSlot = ref(null)
-const selectedEndSlot = ref(null)
 
 const form = reactive({
   title: '',
-  startTime: null,
-  endTime: null,
+  startTime: '',
+  endTime: '',
   attendees: 1,
   remark: ''
 })
@@ -172,7 +179,8 @@ const form = reactive({
 const rules = {
   title: [{ required: true, message: '请填写预约用途', trigger: 'blur' }],
   startTime: [{ required: true, message: '请选择开始时间', trigger: 'change' }],
-  endTime: [{ required: true, message: '请选择结束时间', trigger: 'change' }]
+  endTime: [{ required: true, message: '请选择结束时间', trigger: 'change' }],
+  attendees: [{ required: true, message: '请填写参与人数', trigger: 'change' }]
 }
 
 function formatDate(d) {
@@ -191,27 +199,39 @@ function disabledDate(d) {
   return dayjs(d).isBefore(dayjs(), 'day')
 }
 
+function disabledHours() {
+  return []
+}
+
+function disabledMinutes(hour) {
+  const now = dayjs()
+  const selected = dayjs(form.startTime || form.endTime || new Date())
+  if (selected.isSame(now, 'day') && hour === now.hour()) {
+    return Array.from({ length: now.minute() }, (_, i) => i)
+  }
+  return []
+}
+
 function isSlotInRange(slot) {
   if (!form.startTime || !form.endTime) return false
   const s = dayjs(slot.start)
-  return s.isAfter(dayjs(form.startTime).subtract(1, 'minute')) &&
-         s.isBefore(dayjs(form.endTime))
+  return s.isAfter(dayjs(form.startTime).subtract(1, 'minute')) && s.isBefore(dayjs(form.endTime))
 }
 
 function selectSlot(slot) {
   if (!selectedStartSlot.value) {
     selectedStartSlot.value = slot
-    form.startTime = new Date(slot.start)
-    form.endTime = new Date(dayjs(slot.start).add(30, 'minute').toDate())
+    form.startTime = dayjs(slot.start).format('YYYY-MM-DDTHH:mm:ss')
+    form.endTime = dayjs(slot.start).add(30, 'minute').format('YYYY-MM-DDTHH:mm:ss')
   } else {
     const clickedTime = dayjs(slot.start)
     const startTime = dayjs(selectedStartSlot.value.start)
     if (clickedTime.isAfter(startTime)) {
-      form.endTime = new Date(dayjs(slot.end).toDate())
+      form.endTime = dayjs(slot.end).format('YYYY-MM-DDTHH:mm:ss')
     } else {
       selectedStartSlot.value = slot
-      form.startTime = new Date(slot.start)
-      form.endTime = new Date(dayjs(slot.start).add(30, 'minute').toDate())
+      form.startTime = dayjs(slot.start).format('YYYY-MM-DDTHH:mm:ss')
+      form.endTime = dayjs(slot.start).add(30, 'minute').format('YYYY-MM-DDTHH:mm:ss')
     }
   }
 }
@@ -231,10 +251,13 @@ async function loadSlots() {
   }
 }
 
-// 监听时间变化，实时冲突检测（使用已有的时段数据做前端判断）
-watch([() => form.startTime, () => form.endTime], ([start, end]) => {
+watch([() => form.startTime, () => form.endTime, () => form.attendees], ([start, end, attendees]) => {
   conflictTip.value = ''
   if (!start || !end) return
+  if (dayjs(start).isBefore(dayjs())) {
+    conflictTip.value = '开始时间不能早于当前时间'
+    return
+  }
   if (dayjs(end).isBefore(dayjs(start)) || dayjs(end).isSame(dayjs(start))) {
     conflictTip.value = '结束时间必须晚于开始时间'
     return
@@ -244,7 +267,14 @@ watch([() => form.startTime, () => form.endTime], ([start, end]) => {
     conflictTip.value = '预约时长不能少于30分钟'
     return
   }
-  // 前端基于已加载时段数据做快速预检
+  if (durationMin > 480) {
+    conflictTip.value = '单次预约不能超过8小时'
+    return
+  }
+  if (lab.value && attendees > lab.value.capacity) {
+    conflictTip.value = `参与人数不能超过实验室容量（最多 ${lab.value.capacity} 人）`
+    return
+  }
   const conflict = slots.value.some(slot => {
     if (!slot.occupied) return false
     const slotStart = dayjs(slot.start)
@@ -269,8 +299,8 @@ async function submitReservation() {
     await reservationApi.create({
       labId,
       title: form.title,
-      startTime: dayjs(form.startTime).format('YYYY-MM-DDTHH:mm:ss'),
-      endTime: dayjs(form.endTime).format('YYYY-MM-DDTHH:mm:ss'),
+      startTime: form.startTime,
+      endTime: form.endTime,
       attendees: form.attendees,
       remark: form.remark
     })
@@ -281,7 +311,6 @@ async function submitReservation() {
   }
 }
 
-// 初始化
 ;(async () => {
   const res = await labApi.list()
   lab.value = (res.data || []).find(l => l.id === labId) || null
@@ -296,7 +325,6 @@ async function submitReservation() {
   gap: 1rem;
   align-items: start;
 }
-
 .section-title {
   font-size: 0.95rem;
   font-weight: 600;
@@ -306,20 +334,16 @@ async function submitReservation() {
   justify-content: space-between;
   align-items: center;
 }
-
 .lab-info-header {
   display: flex;
   gap: 0.75rem;
   align-items: flex-start;
   margin-bottom: 0.75rem;
 }
-
 .lab-info-header h3 { font-size: 1rem; font-weight: 600; }
 .text-gray { font-size: 0.8rem; color: #909399; margin-top: 0.2rem; }
-
 .lab-desc { font-size: 0.8rem; color: #606266; margin-bottom: 0.5rem; }
 .lab-meta { display: flex; align-items: center; gap: 0.75rem; }
-
 .slots-loading {
   text-align: center;
   padding: 1.5rem;
@@ -329,14 +353,12 @@ async function submitReservation() {
   justify-content: center;
   gap: 0.5rem;
 }
-
 .slots-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0.4rem;
   margin-bottom: 0.75rem;
 }
-
 .slot-item {
   padding: 0.3rem 0.25rem;
   text-align: center;
@@ -347,44 +369,16 @@ async function submitReservation() {
   transition: all 0.15s;
   white-space: nowrap;
 }
-
-.slot-free {
-  background: #f0f9eb;
-  color: #67c23a;
-  border-color: #c2e7b0;
-}
-
-.slot-free:hover {
-  background: #67c23a;
-  color: #fff;
-}
-
-.slot-busy {
-  background: #fef0f0;
-  color: #c0c4cc;
-  border-color: #fde2e2;
-  cursor: not-allowed;
-}
-
-.slot-active {
-  background: #409eff !important;
-  color: #fff !important;
-  border-color: #409eff !important;
-}
-
-.slots-legend {
-  display: flex;
-  gap: 1rem;
-  font-size: 0.75rem;
-  color: #909399;
-}
-
+.slot-free { background: #f0f9eb; color: #67c23a; border-color: #c2e7b0; }
+.slot-free:hover { background: #67c23a; color: #fff; }
+.slot-busy { background: #fef0f0; color: #c0c4cc; border-color: #fde2e2; cursor: not-allowed; }
+.slot-active { background: #409eff !important; color: #fff !important; border-color: #409eff !important; }
+.slots-legend { display: flex; gap: 1rem; font-size: 0.75rem; color: #909399; }
 .legend-item { display: flex; align-items: center; gap: 0.3rem; }
 .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .dot-free { background: #67c23a; }
 .dot-busy { background: #f56c6c; }
 .dot-active { background: #409eff; }
-
 .conflict-tip {
   display: flex;
   align-items: center;
@@ -396,7 +390,6 @@ async function submitReservation() {
   border-radius: 0.375rem;
   margin-bottom: 0.75rem;
 }
-
 .ok-tip {
   display: flex;
   align-items: center;
@@ -408,13 +401,13 @@ async function submitReservation() {
   border-radius: 0.375rem;
   margin-bottom: 0.75rem;
 }
-
+.field-tip {
+  margin-top: 0.4rem;
+  font-size: 12px;
+  color: #909399;
+}
 @media (max-width: 768px) {
-  .book-layout {
-    grid-template-columns: 1fr;
-  }
-  .slots-grid {
-    grid-template-columns: repeat(6, 1fr);
-  }
+  .book-layout { grid-template-columns: 1fr; }
+  .slots-grid { grid-template-columns: repeat(6, 1fr); }
 }
 </style>

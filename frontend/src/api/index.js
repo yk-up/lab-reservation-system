@@ -22,6 +22,7 @@ export const reservationApi = {
   myList: () => request.get('/reservations/my'),
   cancel: (id) => request.put(`/reservations/${id}/cancel`),
   pending: () => request.get('/reservations/pending'),
+  adminList: (params) => request.get('/reservations/admin-list', { params }),
   audit: (id, data) => request.put(`/reservations/${id}/audit`, data)
 }
 
