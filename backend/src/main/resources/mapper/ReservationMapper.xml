@@ -44,6 +44,27 @@
         ORDER BY r.create_time ASC
     </select>
 
+    <select id="findAdminList" resultMap="ReservationMap">
+        SELECT r.*, l.name AS lab_name, u.username, u.real_name
+        FROM reservation r
+        LEFT JOIN `lab` l ON l.id = r.lab_id
+        LEFT JOIN `user` u ON u.id = r.user_id
+        <where>
+            <if test="status != null">AND r.status = #{status}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    u.real_name LIKE CONCAT('%', #{keyword}, '%')
+                    OR u.username LIKE CONCAT('%', #{keyword}, '%')
+                    OR l.name LIKE CONCAT('%', #{keyword}, '%')
+                    OR r.title LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="startTime != null">AND r.start_time &gt;= #{startTime}</if>
+            <if test="endTime != null">AND r.start_time &lt;= #{endTime}</if>
+        </where>
+        ORDER BY r.create_time DESC
+    </select>
+
     <select id="findByLabAndTimeRange" resultMap="ReservationMap">
         SELECT * FROM reservation
         WHERE lab_id = #{labId}

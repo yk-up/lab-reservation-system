@@ -6,8 +6,10 @@ import com.lab.reservation.util.UserContext;
 import com.lab.reservation.vo.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 @RestController
@@ -42,6 +44,17 @@ public class ReservationController {
     public Result<?> pending() {
         if (!UserContext.isAdmin()) return Result.forbidden();
         return Result.success(reservationService.listPending());
+    }
+
+    /** 管理员：按条件查看预约列表 */
+    @GetMapping("/admin-list")
+    public Result<?> adminList(
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime) {
+        if (!UserContext.isAdmin()) return Result.forbidden();
+        return Result.success(reservationService.listAdminReservations(status, keyword, startTime, endTime));
     }
 
     /** 管理员：审核预约 */

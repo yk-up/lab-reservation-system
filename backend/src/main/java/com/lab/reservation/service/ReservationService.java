@@ -18,16 +18,13 @@ public class ReservationService {
     private final ReservationMapper reservationMapper;
     private final NoticeMapper noticeMapper;
     private final BlacklistMapper blacklistMapper;
-    private final UserMapper userMapper;
 
     @Transactional
     public Reservation create(Long userId, ReservationRequest req) {
-        // 1. 黑名单检查
         if (blacklistMapper.findActiveByUserId(userId) != null) {
             throw new IllegalArgumentException("您已被列入黑名单，无法进行预约");
         }
 
-        // 2. 时间合理性校验
         if (!req.getEndTime().isAfter(req.getStartTime())) {
             throw new IllegalArgumentException("结束时间必须晚于开始时间");
         }
@@ -39,14 +36,12 @@ public class ReservationService {
             throw new IllegalArgumentException("单次预约不能超过8小时");
         }
 
-        // 3. 冲突检测（核心：利用区间重叠 SQL 查询）
         int conflictCount = reservationMapper.countConflict(
                 req.getLabId(), req.getStartTime(), req.getEndTime(), null);
         if (conflictCount > 0) {
             throw new IllegalArgumentException("该时间段已被预约，请选择其他时段");
         }
 
-        // 4. 创建预约
         Reservation reservation = new Reservation();
         reservation.setUserId(userId);
         reservation.setLabId(req.getLabId());
@@ -65,6 +60,10 @@ public class ReservationService {
         return reservationMapper.findByUserId(userId);
     }
 
+    public List<Reservation> listAdminReservations(Integer status, String keyword, LocalDateTime startTime, LocalDateTime endTime) {
+        return reservationMapper.findAdminList(status, keyword, startTime, endTime);
+    }
+
     @Transactional
     public void cancel(Long reservationId, Long userId) {
         Reservation r = reservationMapper.findById(reservationId);
@@ -76,19 +75,16 @@ public class ReservationService {
         reservationMapper.cancel(reservationId, LocalDateTime.now());
     }
 
-    /** 管理员查看所有待审核预约 */
     public List<Reservation> listPending() {
         return reservationMapper.findPendingList();
     }
 
-    /** 管理员审核预约 */
     @Transactional
     public void audit(Long reservationId, Integer status, String rejectReason) {
         Reservation r = reservationMapper.findById(reservationId);
         if (r == null) throw new IllegalArgumentException("预约不存在");
         if (r.getStatus() != 0) throw new IllegalArgumentException("该预约已审核，请勿重复操作");
 
-        // 通过时再次检查冲突（防止并发场景下两个预约同时通过）
         if (status == 1) {
             int conflict = reservationMapper.countConflict(
                     r.getLabId(), r.getStartTime(), r.getEndTime(), reservationId);
@@ -99,8 +95,6 @@ public class ReservationService {
 
         reservationMapper.updateStatus(reservationId, status, rejectReason);
 
-        // 发送通知
-        User user = userMapper.findById(r.getUserId());
         Notice notice = new Notice();
         notice.setUserId(r.getUserId());
         notice.setReservationId(reservationId);
@@ -118,9 +112,6 @@ public class ReservationService {
         noticeMapper.insert(notice);
     }
 
-    /**
-     * 定时任务：每5分钟检查是否有预约即将开始（提前1小时发送站内信提醒）
-     */
     @Scheduled(fixedRate = 5 * 60 * 1000)
     public void sendReminderNotices() {
         List<Reservation> reservations = reservationMapper.findNeedReminderReservations();

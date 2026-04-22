@@ -17,6 +17,13 @@ public interface ReservationMapper {
 
     List<Reservation> findPendingList();
 
+    List<Reservation> findAdminList(
+            @Param("status") Integer status,
+            @Param("keyword") String keyword,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime
+    );
+
     List<Reservation> findByLabAndTimeRange(
             @Param("labId") Long labId,
             @Param("startTime") LocalDateTime startTime,
