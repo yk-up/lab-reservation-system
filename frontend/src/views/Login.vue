@@ -90,17 +90,44 @@ async function handleLogin() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(28, 42, 74, 0.42) 0%, rgba(23, 36, 66, 0.55) 100%),
+    url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=1920&q=80')
+      center center / cover no-repeat;
   padding: 1rem;
 }
 
+.login-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.24), transparent 40%),
+    radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.2), transparent 36%);
+  pointer-events: none;
+}
+
+.login-page::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(10, 18, 36, 0.08) 0%, rgba(10, 18, 36, 0.45) 100%);
+  pointer-events: none;
+}
+
 .login-card {
-  background: #fff;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
   border-radius: 1rem;
   padding: 2.5rem 2rem;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  position: relative;
+  z-index: 2;
 }
 
 .login-header {
