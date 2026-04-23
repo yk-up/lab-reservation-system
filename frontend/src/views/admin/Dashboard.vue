@@ -61,6 +61,62 @@
       </div>
     </div>
 
+    <div class="card mt-3 trend-card">
+      <div class="section-head">
+        <div>
+          <h3 class="section-title">预约趋势分析</h3>
+          <p class="section-subtitle">支持按天/每7天分组统计，辅助排班和资源规划</p>
+        </div>
+        <div class="trend-controls">
+          <el-radio-group v-model="trendGroupBy" size="small" @change="loadTrend">
+            <el-radio-button label="daily">按天</el-radio-button>
+            <el-radio-button label="weekly">每7天</el-radio-button>
+          </el-radio-group>
+          <el-radio-group v-model="trendDays" size="small" @change="loadTrend">
+            <el-radio-button :label="7">近7天</el-radio-button>
+            <el-radio-button :label="14">近14天</el-radio-button>
+            <el-radio-button :label="30">近30天</el-radio-button>
+          </el-radio-group>
+        </div>
+      </div>
+
+      <div class="trend-kpis">
+        <div class="kpi-item">
+          <div class="kpi-label">总预约数</div>
+          <div class="kpi-value">{{ trend.totalReservations ?? 0 }}</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-label">通过 / 拒绝</div>
+          <div class="kpi-value">{{ trend.approvedReservations ?? 0 }} / {{ trend.rejectedReservations ?? 0 }}</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-label">{{ trendGroupBy === 'daily' ? '峰值日' : '峰值周期' }}</div>
+          <div class="kpi-value">{{ trend.peakDate || '-' }}（{{ trend.peakCount ?? 0 }}）</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-label">{{ trendGroupBy === 'daily' ? '较前一天' : '较上一周期' }}</div>
+          <div class="kpi-value" :class="trend.dayOverDay >= 0 ? 'up' : 'down'">
+            {{ trend.dayOverDay >= 0 ? '+' : '' }}{{ trend.dayOverDay ?? 0 }}%
+          </div>
+        </div>
+      </div>
+
+      <div v-if="trendPoints.length" class="trend-bars">
+        <div v-for="item in trendPoints" :key="item.date" class="trend-row">
+          <div class="trend-label">{{ item.label }}</div>
+          <div class="trend-bar-bg">
+            <div class="trend-bar-total" :style="{ width: `${trendBarPercent(item.totalCount)}%` }"></div>
+            <div
+              class="trend-bar-approved"
+              :style="{ width: `${trendApprovedPercent(item.approvedCount, item.totalCount)}%` }"
+            ></div>
+          </div>
+          <div class="trend-value">{{ item.totalCount }}</div>
+        </div>
+      </div>
+      <el-empty v-else description="暂无趋势数据" />
+    </div>
+
     <div class="card mt-3">
       <h3 style="margin-bottom: 1rem; font-size: 1rem; font-weight: 600;">待审核预约</h3>
       <el-table :data="pendingList" stripe style="width: 100%">
@@ -110,6 +166,9 @@ const data = ref({})
 const pendingList = ref([])
 const usageList = ref([])
 const usageTotal = ref(0)
+const trendDays = ref(7)
+const trendGroupBy = ref('weekly')
+const trend = ref({})
 const rejectDialog = ref(false)
 const rejectReason = ref('')
 const currentRow = ref(null)
@@ -123,12 +182,24 @@ const statCards = [
 ]
 
 const maxUsageCount = computed(() => Math.max(...usageList.value.map(item => Number(item.reservationCount) || 0), 1))
+const trendPoints = computed(() => trend.value?.points || [])
+const trendMaxCount = computed(() => Math.max(...trendPoints.value.map(item => Number(item.totalCount) || 0), 1))
 
 const formatDateTime = t => (t ? dayjs(t).format('MM-DD HH:mm') : '-')
 const formatTime = t => (t ? dayjs(t).format('HH:mm') : '-')
 
 function barPercent(item) {
   return Math.max(12, Math.round(((Number(item.reservationCount) || 0) / maxUsageCount.value) * 100))
+}
+
+function trendBarPercent(totalCount) {
+  return Math.max(4, Math.round(((Number(totalCount) || 0) / trendMaxCount.value) * 100))
+}
+
+function trendApprovedPercent(approvedCount, totalCount) {
+  const total = Number(totalCount) || 0
+  if (!total) return 0
+  return Math.round(((Number(approvedCount) || 0) / total) * 100)
 }
 
 function openReject(row) {
@@ -162,6 +233,11 @@ async function confirmReject() {
   }
 }
 
+async function loadTrend() {
+  const trendRes = await adminApi.reservationTrend(trendDays.value, trendGroupBy.value)
+  trend.value = trendRes.data || {}
+}
+
 onMounted(async () => {
   const [dashRes, pendingRes, usageRes] = await Promise.all([
     adminApi.dashboard(),
@@ -172,6 +248,7 @@ onMounted(async () => {
   pendingList.value = pendingRes.data || []
   usageList.value = usageRes.data?.ranking || []
   usageTotal.value = usageRes.data?.totalReservations || 0
+  await loadTrend()
 })
 </script>
 
@@ -224,6 +301,11 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1rem;
+}
+.trend-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .section-title {
   font-size: 1rem;
@@ -292,6 +374,81 @@ onMounted(async () => {
   border-radius: 999px;
   background: linear-gradient(90deg, #409eff, #67c23a);
 }
+.trend-card {
+  padding: 1.25rem;
+}
+.trend-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.kpi-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.kpi-label {
+  font-size: 12px;
+  color: #64748b;
+}
+.kpi-value {
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+}
+.kpi-value.up {
+  color: #16a34a;
+}
+.kpi-value.down {
+  color: #dc2626;
+}
+.trend-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.trend-row {
+  display: grid;
+  grid-template-columns: 116px 1fr 46px;
+  gap: 8px;
+  align-items: center;
+}
+.trend-label {
+  color: #64748b;
+  font-size: 12px;
+}
+.trend-bar-bg {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+.trend-bar-total {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #60a5fa, #3b82f6);
+}
+.trend-bar-approved {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #34d399, #10b981);
+  opacity: 0.85;
+}
+.trend-value {
+  text-align: right;
+  font-size: 12px;
+  color: #334155;
+}
 .usage-meta {
   display: flex;
   gap: 0.5rem;
@@ -309,6 +466,13 @@ onMounted(async () => {
 @media (max-width: 768px) {
   .usage-row {
     grid-template-columns: 1fr;
+  }
+  .trend-kpis {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+  .trend-controls {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 </style>
