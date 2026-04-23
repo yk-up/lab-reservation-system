@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -110,6 +111,31 @@ public class ReservationService {
                     r.getTitle(), rejectReason != null ? rejectReason : "暂无说明"));
         }
         noticeMapper.insert(notice);
+    }
+
+    @Transactional
+    public int batchAudit(List<Long> ids, Integer status, String rejectReason) {
+        if (ids == null || ids.isEmpty()) {
+            throw new IllegalArgumentException("请选择至少一条预约记录");
+        }
+        if (status == null || (status != 1 && status != 2)) {
+            throw new IllegalArgumentException("审核状态参数错误，1=通过，2=拒绝");
+        }
+
+        List<Long> distinctIds = new ArrayList<>();
+        for (Long id : ids) {
+            if (id != null && !distinctIds.contains(id)) {
+                distinctIds.add(id);
+            }
+        }
+        if (distinctIds.isEmpty()) {
+            throw new IllegalArgumentException("预约ID不能为空");
+        }
+
+        for (Long id : distinctIds) {
+            audit(id, status, rejectReason);
+        }
+        return distinctIds.size();
     }
 
     @Scheduled(fixedRate = 5 * 60 * 1000)

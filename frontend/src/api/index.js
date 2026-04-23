@@ -24,7 +24,8 @@ export const reservationApi = {
   cancel: (id) => request.put(`/reservations/${id}/cancel`),
   pending: () => request.get('/reservations/pending'),
   adminList: (params) => request.get('/reservations/admin-list', { params }),
-  audit: (id, data) => request.put(`/reservations/${id}/audit`, data)
+  audit: (id, data) => request.put(`/reservations/${id}/audit`, data),
+  batchAudit: (data) => request.put('/reservations/audit/batch', data)
 }
 
 // ========== 通知 ==========

@@ -1,5 +1,6 @@
 package com.lab.reservation.controller;
 
+import com.lab.reservation.dto.BatchAuditRequest;
 import com.lab.reservation.dto.ReservationRequest;
 import com.lab.reservation.service.ReservationService;
 import com.lab.reservation.util.UserContext;
@@ -68,5 +69,13 @@ public class ReservationController {
         }
         reservationService.audit(id, status, rejectReason);
         return Result.success("审核操作成功");
+    }
+
+    /** 管理员：批量审核预约 */
+    @PutMapping("/audit/batch")
+    public Result<?> batchAudit(@RequestBody BatchAuditRequest req) {
+        if (!UserContext.isAdmin()) return Result.forbidden();
+        int count = reservationService.batchAudit(req.getIds(), req.getStatus(), req.getRejectReason());
+        return Result.success("已完成批量审核，共处理 " + count + " 条记录");
     }
 }

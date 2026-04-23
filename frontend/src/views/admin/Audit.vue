@@ -2,7 +2,10 @@
   <div>
     <div class="flex-between mb-2 header-row">
       <h2 class="page-title">预约审核</h2>
-      <el-button :icon="Refresh" @click="loadData">刷新</el-button>
+      <div class="header-actions">
+        <el-button @click="loadPendingOnly">仅待审核</el-button>
+        <el-button :icon="Refresh" @click="loadData">刷新</el-button>
+      </div>
     </div>
 
     <div class="card filter-card mb-2">
@@ -41,7 +44,29 @@
     </div>
 
     <div class="card">
-      <el-table :data="pagedList" stripe v-loading="loading" style="width: 100%">
+      <div class="mb-2 table-toolbar">
+        <el-button
+          type="success"
+          plain
+          :disabled="selectedPendingIds.length === 0"
+          :loading="processingBatch"
+          @click="batchApprove"
+        >
+          批量通过（{{ selectedPendingIds.length }}）
+        </el-button>
+        <el-button
+          type="danger"
+          plain
+          :disabled="selectedPendingIds.length === 0"
+          :loading="processingBatch"
+          @click="openBatchReject"
+        >
+          批量拒绝（{{ selectedPendingIds.length }}）
+        </el-button>
+      </div>
+
+      <el-table :data="pagedList" stripe v-loading="loading" style="width: 100%" @selection-change="onSelectionChange">
+        <el-table-column type="selection" width="50" :selectable="canSelectRow" />
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column label="申请人" width="180">
           <template #default="{ row }">
@@ -120,6 +145,24 @@
         <el-button type="danger" :loading="!!processingId" @click="confirmReject">确认拒绝</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="batchRejectVisible" title="批量拒绝预约" width="420px">
+      <p style="margin-bottom: 0.75rem; font-size: 0.875rem; color: #606266;">
+        本次将拒绝 <strong>{{ selectedPendingIds.length }}</strong> 条待审核预约。
+      </p>
+      <el-input
+        v-model="batchRejectReason"
+        type="textarea"
+        :rows="3"
+        maxlength="200"
+        show-word-limit
+        placeholder="请填写拒绝原因，将通知给申请人（建议填写）"
+      />
+      <template #footer>
+        <el-button @click="batchRejectVisible = false">取消</el-button>
+        <el-button type="danger" :loading="processingBatch" @click="confirmBatchReject">确认批量拒绝</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -136,6 +179,10 @@ const rejectVisible = ref(false)
 const rejectReason = ref('')
 const currentItem = ref(null)
 const processingId = ref('')
+const processingBatch = ref(false)
+const selectedRows = ref([])
+const batchRejectVisible = ref(false)
+const batchRejectReason = ref('')
 const currentPage = ref(1)
 const pageSize = 8
 
@@ -149,6 +196,9 @@ const pagedList = computed(() => {
   const start = (currentPage.value - 1) * pageSize
   return list.value.slice(start, start + pageSize)
 })
+const selectedPendingIds = computed(() =>
+  selectedRows.value.filter(row => row.status === 0).map(row => row.id)
+)
 
 const formatDateTime = t => (t ? dayjs(t).format('MM-DD HH:mm') : '-')
 const formatTime = t => (t ? dayjs(t).format('HH:mm') : '-')
@@ -172,11 +222,32 @@ async function loadData() {
   }
 }
 
+async function loadPendingOnly() {
+  loading.value = true
+  try {
+    const res = await reservationApi.pending()
+    list.value = res.data || []
+    currentPage.value = 1
+    filters.status = 0
+    selectedRows.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
 function resetFilters() {
   filters.keyword = ''
   filters.status = 0
   filters.dateRange = []
   loadData()
+}
+
+function canSelectRow(row) {
+  return row.status === 0
+}
+
+function onSelectionChange(rows) {
+  selectedRows.value = rows || []
 }
 
 async function approve(row) {
@@ -215,14 +286,59 @@ async function confirmReject() {
   }
 }
 
+async function batchApprove() {
+  if (selectedPendingIds.value.length === 0) {
+    ElMessage.warning('请先选择待审核记录')
+    return
+  }
+  processingBatch.value = true
+  try {
+    await reservationApi.batchAudit({
+      ids: selectedPendingIds.value,
+      status: 1
+    })
+    ElMessage.success(`批量通过成功，共处理 ${selectedPendingIds.value.length} 条`)
+    await loadData()
+  } finally {
+    processingBatch.value = false
+  }
+}
+
+function openBatchReject() {
+  if (selectedPendingIds.value.length === 0) {
+    ElMessage.warning('请先选择待审核记录')
+    return
+  }
+  batchRejectReason.value = ''
+  batchRejectVisible.value = true
+}
+
+async function confirmBatchReject() {
+  processingBatch.value = true
+  try {
+    await reservationApi.batchAudit({
+      ids: selectedPendingIds.value,
+      status: 2,
+      rejectReason: batchRejectReason.value
+    })
+    ElMessage.success(`批量拒绝成功，共处理 ${selectedPendingIds.value.length} 条`)
+    batchRejectVisible.value = false
+    await loadData()
+  } finally {
+    processingBatch.value = false
+  }
+}
+
 onMounted(loadData)
 </script>
 
 <style scoped>
 .page-title { font-size: 1.25rem; font-weight: 600; }
 .header-row { align-items: center; }
+.header-actions { display: flex; gap: 8px; }
 .filter-card { padding-bottom: 0.25rem; }
 .filter-form { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.table-toolbar { display: flex; gap: 8px; }
 .pagination-wrap {
   display: flex;
   justify-content: flex-end;
