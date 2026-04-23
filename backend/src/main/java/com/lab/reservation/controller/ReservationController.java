@@ -29,8 +29,11 @@ public class ReservationController {
 
     /** 查看"我的预约" */
     @GetMapping("/my")
-    public Result<?> myReservations() {
-        return Result.success(reservationService.listMyReservations(UserContext.getUserId()));
+    public Result<?> myReservations(
+            @RequestParam(required = false) Integer status,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        return Result.success(reservationService.listMyReservations(UserContext.getUserId(), status, page, pageSize));
     }
 
     /** 取消预约 */
@@ -42,9 +45,11 @@ public class ReservationController {
 
     /** 管理员：查看所有待审核预约 */
     @GetMapping("/pending")
-    public Result<?> pending() {
+    public Result<?> pending(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
         if (!UserContext.isAdmin()) return Result.forbidden();
-        return Result.success(reservationService.listPending());
+        return Result.success(reservationService.listPending(page, pageSize));
     }
 
     /** 管理员：按条件查看预约列表 */
@@ -53,9 +58,11 @@ public class ReservationController {
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
         if (!UserContext.isAdmin()) return Result.forbidden();
-        return Result.success(reservationService.listAdminReservations(status, keyword, startTime, endTime));
+        return Result.success(reservationService.listAdminReservations(status, keyword, startTime, endTime, page, pageSize));
     }
 
     /** 管理员：审核预约 */

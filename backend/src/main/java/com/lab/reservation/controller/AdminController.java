@@ -29,7 +29,7 @@ public class AdminController {
         Map<String, Object> data = new HashMap<>();
         data.put("totalLabs", labMapper.findAll(null).size());
         data.put("openLabs", labMapper.findAll(1).size());
-        data.put("pendingCount", reservationMapper.findPendingList().size());
+        data.put("pendingCount", reservationMapper.countPending());
         data.put("blacklistCount", blacklistMapper.findAll().size());
         return Result.success(data);
     }
