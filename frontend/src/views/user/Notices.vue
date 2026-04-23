@@ -19,7 +19,7 @@
     <template v-else>
       <div class="notice-list">
         <div
-          v-for="n in pagedNotices"
+          v-for="n in notices"
           :key="n.id"
           class="notice-item"
           :class="{ unread: n.isRead === 0 }"
@@ -52,28 +52,23 @@
 
       <div class="list-footer">
         <el-pagination
-          v-if="notices.length > pageSize"
+          v-if="total > pageSize"
           v-model:current-page="currentPage"
-          :page-size="pageSize"
-          layout="prev, pager, next"
-          :total="notices.length"
+          v-model:page-size="pageSize"
+          layout="total, sizes, prev, pager, next"
+          :page-sizes="[10, 20, 50]"
+          :total="total"
           background
+          @current-change="loadNotices"
+          @size-change="onSizeChange"
         />
-        <el-button
-          v-if="visibleCount < notices.length"
-          class="load-more"
-          plain
-          @click="loadMore"
-        >
-          加载更多
-        </el-button>
       </div>
     </template>
   </div>
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
@@ -85,8 +80,8 @@ const userStore = useUserStore()
 const loading = ref(true)
 const notices = ref([])
 const currentPage = ref(1)
-const pageSize = 6
-const visibleCount = ref(12)
+const pageSize = ref(10)
+const total = ref(0)
 let timer = null
 
 const typeIcon = (t) => ({ 1: 'CircleCheckFilled', 2: 'CircleCloseFilled', 3: 'AlarmClock', 4: 'Bell' }[t] || 'Bell')
@@ -94,12 +89,6 @@ const typeColor = (t) => ({ 1: '#67c23a', 2: '#f56c6c', 3: '#409eff', 4: '#90939
 const formatTime = (t) => (t ? dayjs(t).format('MM-DD HH:mm') : '')
 const statusTagText = (t) => ({ 1: '成功', 2: '失败', 3: '提醒', 4: '通知' }[t] || '通知')
 const statusTagType = (t) => ({ 1: 'success', 2: 'danger', 3: 'primary', 4: 'info' }[t] || 'info')
-
-const visibleNotices = computed(() => notices.value.slice(0, visibleCount.value))
-const pagedNotices = computed(() => {
-  const start = (currentPage.value - 1) * pageSize
-  return visibleNotices.value.slice(start, start + pageSize)
-})
 
 function noticeTargetPath(n) {
   if (n.type === 1 || n.type === 2) return '/my-reservations'
@@ -115,10 +104,13 @@ function noticeTargetLabel(n) {
 }
 
 async function loadNotices() {
-  const res = await noticeApi.list()
-  notices.value = res.data || []
-  const maxPage = Math.max(1, Math.ceil(Math.min(notices.value.length, visibleCount.value) / pageSize))
-  if (currentPage.value > maxPage) currentPage.value = maxPage
+  const res = await noticeApi.list({
+    page: currentPage.value,
+    pageSize: pageSize.value
+  })
+  const data = res.data || {}
+  notices.value = data.list || []
+  total.value = data.total || 0
 }
 
 async function loadUnread() {
@@ -156,8 +148,9 @@ async function readAll() {
   ElMessage.success('已全部标为已读')
 }
 
-function loadMore() {
-  visibleCount.value += 12
+function onSizeChange() {
+  currentPage.value = 1
+  loadNotices()
 }
 
 onMounted(async () => {
@@ -239,7 +232,6 @@ onUnmounted(() => {
   margin-top: 1rem;
   flex-wrap: wrap;
 }
-.load-more { margin-left: auto; }
 @media (max-width: 768px) {
   .notice-head, .notice-footer, .header-wrap {
     flex-direction: column;
@@ -248,6 +240,5 @@ onUnmounted(() => {
   .list-footer {
     justify-content: center;
   }
-  .load-more { margin-left: 0; }
 }
 </style>

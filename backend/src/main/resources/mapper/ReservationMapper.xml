@@ -31,24 +31,7 @@
         SELECT * FROM reservation WHERE id = #{id} LIMIT 1
     </select>
 
-    <select id="findByUserId" resultMap="ReservationMap">
-        SELECT * FROM reservation WHERE user_id = #{userId} ORDER BY create_time DESC
-    </select>
-
-    <select id="findPendingList" resultMap="ReservationMap">
-        SELECT r.*, l.name AS lab_name, u.username, u.real_name
-        FROM reservation r
-        LEFT JOIN `lab` l ON l.id = r.lab_id
-        LEFT JOIN `user` u ON u.id = r.user_id
-        WHERE r.status = 0
-        ORDER BY r.create_time ASC
-    </select>
-
-    <select id="findAdminList" resultMap="ReservationMap">
-        SELECT r.*, l.name AS lab_name, u.username, u.real_name
-        FROM reservation r
-        LEFT JOIN `lab` l ON l.id = r.lab_id
-        LEFT JOIN `user` u ON u.id = r.user_id
+    <sql id="AdminListWhere">
         <where>
             <if test="status != null">AND r.status = #{status}</if>
             <if test="keyword != null and keyword != ''">
@@ -62,7 +45,57 @@
             <if test="startTime != null">AND r.start_time &gt;= #{startTime}</if>
             <if test="endTime != null">AND r.start_time &lt;= #{endTime}</if>
         </where>
+    </sql>
+
+    <select id="findByUserIdPaged" resultMap="ReservationMap">
+        SELECT * FROM reservation
+        <where>
+            user_id = #{userId}
+            <if test="status != null">AND status = #{status}</if>
+        </where>
+        ORDER BY create_time DESC
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="countByUserId" resultType="long">
+        SELECT COUNT(*)
+        FROM reservation
+        <where>
+            user_id = #{userId}
+            <if test="status != null">AND status = #{status}</if>
+        </where>
+    </select>
+
+    <select id="findPendingPaged" resultMap="ReservationMap">
+        SELECT r.*, l.name AS lab_name, u.username, u.real_name
+        FROM reservation r
+        LEFT JOIN `lab` l ON l.id = r.lab_id
+        LEFT JOIN `user` u ON u.id = r.user_id
+        WHERE r.status = 0
+        ORDER BY r.create_time ASC
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="countPending" resultType="long">
+        SELECT COUNT(*) FROM reservation WHERE status = 0
+    </select>
+
+    <select id="findAdminListPaged" resultMap="ReservationMap">
+        SELECT r.*, l.name AS lab_name, u.username, u.real_name
+        FROM reservation r
+        LEFT JOIN `lab` l ON l.id = r.lab_id
+        LEFT JOIN `user` u ON u.id = r.user_id
+        <include refid="AdminListWhere"/>
         ORDER BY r.create_time DESC
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="countAdminList" resultType="long">
+        SELECT COUNT(1)
+        FROM reservation r
+        LEFT JOIN `lab` l ON l.id = r.lab_id
+        LEFT JOIN `user` u ON u.id = r.user_id
+        <include refid="AdminListWhere"/>
     </select>
 
     <select id="findByLabAndTimeRange" resultMap="ReservationMap">

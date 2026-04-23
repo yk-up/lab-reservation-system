@@ -20,9 +20,9 @@ export const labApi = {
 // ========== 预约 ==========
 export const reservationApi = {
   create: (data) => request.post('/reservations', data),
-  myList: () => request.get('/reservations/my'),
+  myList: (params) => request.get('/reservations/my', { params }),
   cancel: (id) => request.put(`/reservations/${id}/cancel`),
-  pending: () => request.get('/reservations/pending'),
+  pending: (params) => request.get('/reservations/pending', { params }),
   adminList: (params) => request.get('/reservations/admin-list', { params }),
   audit: (id, data) => request.put(`/reservations/${id}/audit`, data),
   batchAudit: (data) => request.put('/reservations/audit/batch', data)
@@ -30,7 +30,7 @@ export const reservationApi = {
 
 // ========== 通知 ==========
 export const noticeApi = {
-  list: () => request.get('/notices'),
+  list: (params) => request.get('/notices', { params }),
   unreadCount: () => request.get('/notices/unread-count'),
   readAll: () => request.put('/notices/read-all'),
   read: (id) => request.put(`/notices/${id}/read`)
