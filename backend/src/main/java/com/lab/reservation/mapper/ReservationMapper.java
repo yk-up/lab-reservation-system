@@ -5,6 +5,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Mapper
 public interface ReservationMapper {
@@ -51,4 +52,10 @@ public interface ReservationMapper {
 
     /** 查询需要发送提醒的预约（开始前1小时，且尚未提醒） */
     List<Reservation> findNeedReminderReservations();
+
+    /** 按天统计预约趋势（管理端数据分析） */
+    List<Map<String, Object>> findDailyTrend(
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime
+    );
 }
