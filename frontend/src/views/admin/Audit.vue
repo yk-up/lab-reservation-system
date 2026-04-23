@@ -65,7 +65,7 @@
         </el-button>
       </div>
 
-      <el-table :data="list" stripe v-loading="loading" style="width: 100%" @selection-change="onSelectionChange">
+      <el-table :data="pagedList" stripe v-loading="loading" style="width: 100%" @selection-change="onSelectionChange">
         <el-table-column type="selection" width="50" :selectable="canSelectRow" />
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column label="申请人" width="180">
@@ -110,16 +110,13 @@
       </el-table>
       <el-empty v-if="!loading && list.length === 0" description="暂无预约记录" />
 
-      <div class="pagination-wrap" v-if="total > pageSize">
+      <div class="pagination-wrap" v-if="list.length > pageSize">
         <el-pagination
           v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          layout="total, sizes, prev, pager, next"
-          :total="total"
-          :page-sizes="[10, 20, 50]"
+          :page-size="pageSize"
+          layout="total, prev, pager, next"
+          :total="list.length"
           background
-          @current-change="loadData"
-          @size-change="onSizeChange"
         />
       </div>
     </div>
@@ -187,8 +184,7 @@ const selectedRows = ref([])
 const batchRejectVisible = ref(false)
 const batchRejectReason = ref('')
 const currentPage = ref(1)
-const pageSize = ref(10)
-const total = ref(0)
+const pageSize = 8
 
 const filters = reactive({
   keyword: '',
@@ -196,6 +192,10 @@ const filters = reactive({
   dateRange: []
 })
 
+const pagedList = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  return list.value.slice(start, start + pageSize)
+})
 const selectedPendingIds = computed(() =>
   selectedRows.value.filter(row => row.status === 0).map(row => row.id)
 )
@@ -213,30 +213,21 @@ async function loadData() {
       status: filters.status,
       keyword: filters.keyword || undefined,
       startTime: start ? dayjs(start).format('YYYY-MM-DDTHH:mm:ss') : undefined,
-      endTime: end ? dayjs(end).format('YYYY-MM-DDTHH:mm:ss') : undefined,
-      page: currentPage.value,
-      pageSize: pageSize.value
+      endTime: end ? dayjs(end).format('YYYY-MM-DDTHH:mm:ss') : undefined
     })
-    const data = res.data || {}
-    list.value = data.list || []
-    total.value = data.total || 0
-    selectedRows.value = []
+    list.value = res.data || []
+    currentPage.value = 1
   } finally {
     loading.value = false
   }
 }
 
 async function loadPendingOnly() {
-  currentPage.value = 1
   loading.value = true
   try {
-    const res = await reservationApi.pending({
-      page: currentPage.value,
-      pageSize: pageSize.value
-    })
-    const data = res.data || {}
-    list.value = data.list || []
-    total.value = data.total || 0
+    const res = await reservationApi.pending()
+    list.value = res.data || []
+    currentPage.value = 1
     filters.status = 0
     selectedRows.value = []
   } finally {
@@ -248,12 +239,6 @@ function resetFilters() {
   filters.keyword = ''
   filters.status = 0
   filters.dateRange = []
-  currentPage.value = 1
-  loadData()
-}
-
-function onSizeChange() {
-  currentPage.value = 1
   loadData()
 }
 
@@ -313,7 +298,6 @@ async function batchApprove() {
       status: 1
     })
     ElMessage.success(`批量通过成功，共处理 ${selectedPendingIds.value.length} 条`)
-    currentPage.value = 1
     await loadData()
   } finally {
     processingBatch.value = false
@@ -339,7 +323,6 @@ async function confirmBatchReject() {
     })
     ElMessage.success(`批量拒绝成功，共处理 ${selectedPendingIds.value.length} 条`)
     batchRejectVisible.value = false
-    currentPage.value = 1
     await loadData()
   } finally {
     processingBatch.value = false

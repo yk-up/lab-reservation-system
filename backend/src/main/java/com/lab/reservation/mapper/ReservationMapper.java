@@ -13,32 +13,11 @@ public interface ReservationMapper {
 
     Reservation findById(@Param("id") Long id);
 
-    List<Reservation> findByUserIdPaged(
-            @Param("userId") Long userId,
-            @Param("status") Integer status,
-            @Param("offset") Integer offset,
-            @Param("pageSize") Integer pageSize
-    );
+    List<Reservation> findByUserId(@Param("userId") Long userId);
 
-    long countByUserId(@Param("userId") Long userId, @Param("status") Integer status);
+    List<Reservation> findPendingList();
 
-    List<Reservation> findPendingPaged(
-            @Param("offset") Integer offset,
-            @Param("pageSize") Integer pageSize
-    );
-
-    long countPending();
-
-    List<Reservation> findAdminListPaged(
-            @Param("status") Integer status,
-            @Param("keyword") String keyword,
-            @Param("startTime") LocalDateTime startTime,
-            @Param("endTime") LocalDateTime endTime,
-            @Param("offset") Integer offset,
-            @Param("pageSize") Integer pageSize
-    );
-
-    long countAdminList(
+    List<Reservation> findAdminList(
             @Param("status") Integer status,
             @Param("keyword") String keyword,
             @Param("startTime") LocalDateTime startTime,

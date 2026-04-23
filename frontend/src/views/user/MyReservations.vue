@@ -6,21 +6,19 @@
       <el-tab-pane label="全部" name="all" />
       <el-tab-pane label="待审核" name="0" />
       <el-tab-pane label="已通过" name="1" />
-      <el-tab-pane label="已拒绝" name="2" />
-      <el-tab-pane label="已取消" name="3" />
-      <el-tab-pane label="已完成" name="4" />
+      <el-tab-pane label="已取消/拒绝" name="other" />
     </el-tabs>
 
     <div v-if="loading" class="loading-wrap">
       <el-skeleton animated :count="3" />
     </div>
 
-    <div v-else-if="list.length === 0" class="mt-3">
+    <div v-else-if="filteredList.length === 0" class="mt-3">
       <el-empty description="暂无预约记录" />
     </div>
 
     <div v-else class="reservation-list mt-2">
-      <div v-for="item in list" :key="item.id" class="reservation-card">
+      <div v-for="item in filteredList" :key="item.id" class="reservation-card">
         <div class="res-header">
           <h3 class="res-title">{{ item.title }}</h3>
           <span class="status-badge" :class="statusClass(item.status)">
@@ -63,24 +61,11 @@
         </div>
       </div>
     </div>
-
-    <div class="pagination-wrap" v-if="total > pageSize">
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        layout="total, sizes, prev, pager, next"
-        :total="total"
-        :page-sizes="[5, 10, 20, 50]"
-        background
-        @current-change="loadData"
-        @size-change="onSizeChange"
-      />
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { WarningFilled } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
@@ -90,9 +75,12 @@ const loading = ref(true)
 const list = ref([])
 const activeTab = ref('all')
 const cancelingId = ref(null)
-const currentPage = ref(1)
-const pageSize = ref(10)
-const total = ref(0)
+
+const filteredList = computed(() => {
+  if (activeTab.value === 'all') return list.value
+  if (activeTab.value === 'other') return list.value.filter(r => r.status === 2 || r.status === 3)
+  return list.value.filter(r => String(r.status) === activeTab.value)
+})
 
 const statusText = (s) => ['待审核', '已通过', '已拒绝', '已取消', '已完成'][s] ?? '未知'
 const statusClass = (s) => ['status-pending', 'status-approved', 'status-rejected', 'status-canceled', 'status-finished'][s] ?? ''
@@ -111,40 +99,21 @@ async function cancelReservation(item) {
   try {
     await reservationApi.cancel(item.id)
     ElMessage.success('预约已取消')
-    await loadData()
+    item.status = 3
+    item.cancelTime = new Date().toISOString()
   } finally {
     cancelingId.value = null
   }
 }
 
-async function loadData() {
-  loading.value = true
+onMounted(async () => {
   try {
-    const status = activeTab.value === 'all' ? undefined : Number(activeTab.value)
-    const res = await reservationApi.myList({
-      status,
-      page: currentPage.value,
-      pageSize: pageSize.value
-    })
-    const data = res.data || {}
-    list.value = data.list || []
-    total.value = data.total || 0
+    const res = await reservationApi.myList()
+    list.value = res.data || []
   } finally {
     loading.value = false
   }
-}
-
-function onSizeChange() {
-  currentPage.value = 1
-  loadData()
-}
-
-watch(activeTab, () => {
-  currentPage.value = 1
-  loadData()
 })
-
-onMounted(loadData)
 </script>
 
 <style scoped>
@@ -213,9 +182,4 @@ onMounted(loadData)
 }
 
 .create-time { font-size: 0.75rem; color: #c0c4cc; }
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 1rem;
-}
 </style>

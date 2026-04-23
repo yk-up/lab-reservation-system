@@ -1,7 +1,5 @@
 package com.lab.reservation.config;
 
-import com.lab.reservation.exception.BizException;
-import com.lab.reservation.exception.ErrorCode;
 import com.lab.reservation.vo.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.BindingResult;
@@ -20,22 +18,17 @@ public class GlobalExceptionHandler {
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .findFirst()
                 .orElse("参数校验失败");
-        return Result.fail(ErrorCode.PARAM_INVALID, message);
-    }
-
-    @ExceptionHandler(BizException.class)
-    public Result<?> handleBizException(BizException e) {
-        return Result.fail(e.getCode(), e.getMessage());
+        return Result.fail(message);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public Result<?> handleIllegalArgument(IllegalArgumentException e) {
-        return Result.fail(ErrorCode.PARAM_INVALID, e.getMessage());
+        return Result.fail(e.getMessage());
     }
 
     @ExceptionHandler(Exception.class)
     public Result<?> handleException(Exception e) {
         log.error("系统异常", e);
-        return Result.fail(ErrorCode.INTERNAL_ERROR);
+        return Result.fail(500, "服务器内部错误，请稍后重试");
     }
 }

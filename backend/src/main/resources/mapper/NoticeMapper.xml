@@ -19,13 +19,8 @@
         VALUES (#{userId}, #{type}, #{title}, #{content}, #{reservationId}, 0)
     </insert>
 
-    <select id="findByUserIdPaged" resultMap="NoticeMap">
-        SELECT * FROM notice WHERE user_id = #{userId} ORDER BY create_time DESC
-        LIMIT #{pageSize} OFFSET #{offset}
-    </select>
-
-    <select id="countByUserId" resultType="long">
-        SELECT COUNT(*) FROM notice WHERE user_id = #{userId}
+    <select id="findByUserId" resultMap="NoticeMap">
+        SELECT * FROM notice WHERE user_id = #{userId} ORDER BY create_time DESC LIMIT 50
     </select>
 
     <select id="countUnread" resultType="int">
@@ -37,7 +32,7 @@
     </update>
 
     <update id="markRead">
-        UPDATE notice SET is_read = 1 WHERE id = #{id} AND user_id = #{userId}
+        UPDATE notice SET is_read = 1 WHERE id = #{id}
     </update>
 
 </mapper>

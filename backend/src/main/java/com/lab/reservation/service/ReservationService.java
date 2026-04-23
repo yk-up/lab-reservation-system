@@ -2,10 +2,7 @@ package com.lab.reservation.service;
 
 import com.lab.reservation.dto.ReservationRequest;
 import com.lab.reservation.entity.*;
-import com.lab.reservation.exception.BizException;
-import com.lab.reservation.exception.ErrorCode;
 import com.lab.reservation.mapper.*;
-import com.lab.reservation.vo.PageResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -60,21 +57,12 @@ public class ReservationService {
         return reservation;
     }
 
-    public PageResult<Reservation> listMyReservations(Long userId, Integer status, Integer page, Integer pageSize) {
-        validatePage(page, pageSize);
-        int offset = (page - 1) * pageSize;
-        List<Reservation> rows = reservationMapper.findByUserIdPaged(userId, status, offset, pageSize);
-        long total = reservationMapper.countByUserId(userId, status);
-        return PageResult.of(page, pageSize, total, rows);
+    public List<Reservation> listMyReservations(Long userId) {
+        return reservationMapper.findByUserId(userId);
     }
 
-    public PageResult<Reservation> listAdminReservations(Integer status, String keyword, LocalDateTime startTime,
-                                                         LocalDateTime endTime, Integer page, Integer pageSize) {
-        validatePage(page, pageSize);
-        int offset = (page - 1) * pageSize;
-        List<Reservation> rows = reservationMapper.findAdminListPaged(status, keyword, startTime, endTime, offset, pageSize);
-        long total = reservationMapper.countAdminList(status, keyword, startTime, endTime);
-        return PageResult.of(page, pageSize, total, rows);
+    public List<Reservation> listAdminReservations(Integer status, String keyword, LocalDateTime startTime, LocalDateTime endTime) {
+        return reservationMapper.findAdminList(status, keyword, startTime, endTime);
     }
 
     @Transactional
@@ -88,12 +76,8 @@ public class ReservationService {
         reservationMapper.cancel(reservationId, LocalDateTime.now());
     }
 
-    public PageResult<Reservation> listPending(Integer page, Integer pageSize) {
-        validatePage(page, pageSize);
-        int offset = (page - 1) * pageSize;
-        List<Reservation> rows = reservationMapper.findPendingPaged(offset, pageSize);
-        long total = reservationMapper.countPending();
-        return PageResult.of(page, pageSize, total, rows);
+    public List<Reservation> listPending() {
+        return reservationMapper.findPendingList();
     }
 
     @Transactional
@@ -165,12 +149,6 @@ public class ReservationService {
             notice.setTitle("预约即将开始提醒");
             notice.setContent(String.format("您的预约【%s】将在1小时后开始，请提前做好准备。", r.getTitle()));
             noticeMapper.insert(notice);
-        }
-    }
-
-    private void validatePage(Integer page, Integer pageSize) {
-        if (page == null || pageSize == null || page < 1 || pageSize < 1 || pageSize > 100) {
-            throw new BizException(ErrorCode.PAGE_PARAM_INVALID, "分页参数无效，page>=1 且 pageSize 范围为 1-100");
         }
     }
 }
