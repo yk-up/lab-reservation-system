@@ -10,6 +10,7 @@ export const authApi = {
 export const labApi = {
   list: () => request.get('/labs'),
   listAll: () => request.get('/labs/all'),
+  usage: () => request.get('/labs/usage'),
   getSlots: (id, date) => request.get(`/labs/${id}/slots`, { params: { date } }),
   add: (data) => request.post('/labs', data),
   update: (id, data) => request.put(`/labs/${id}`, data),
@@ -37,6 +38,7 @@ export const noticeApi = {
 // ========== 管理员 ==========
 export const adminApi = {
   dashboard: () => request.get('/admin/dashboard'),
+  labUsage: () => request.get('/admin/lab-usage'),
   blacklist: () => request.get('/admin/blacklist'),
   addBlacklist: (data) => request.post('/admin/blacklist', data),
   removeBlacklist: (id) => request.delete(`/admin/blacklist/${id}`)
