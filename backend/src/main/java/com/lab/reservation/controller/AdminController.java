@@ -1,13 +1,16 @@
 package com.lab.reservation.controller;
 
 import com.lab.reservation.entity.Blacklist;
-import com.lab.reservation.mapper.*;
+import com.lab.reservation.mapper.BlacklistMapper;
+import com.lab.reservation.mapper.LabMapper;
+import com.lab.reservation.mapper.ReservationMapper;
 import com.lab.reservation.util.UserContext;
 import com.lab.reservation.vo.Result;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -29,6 +32,30 @@ public class AdminController {
         data.put("pendingCount", reservationMapper.findPendingList().size());
         data.put("blacklistCount", blacklistMapper.findAll().size());
         return Result.success(data);
+    }
+
+    /** 实验室使用率统计 */
+    @GetMapping("/lab-usage")
+    public Result<?> labUsage() {
+        if (!UserContext.isAdmin()) return Result.forbidden();
+        List<Map<String, Object>> rows = labMapper.findUsageStats();
+        long totalReservations = 0L;
+        for (Map<String, Object> row : rows) {
+            totalReservations += ((Number) row.getOrDefault("reservationCount", 0L)).longValue();
+        }
+
+        for (int i = 0; i < rows.size(); i++) {
+            Map<String, Object> row = rows.get(i);
+            long count = ((Number) row.getOrDefault("reservationCount", 0L)).longValue();
+            double usageRate = totalReservations == 0 ? 0D : (count * 100.0 / totalReservations);
+            row.put("rank", i + 1);
+            row.put("usageRate", Math.round(usageRate * 10) / 10.0);
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("totalReservations", totalReservations);
+        result.put("ranking", rows);
+        return Result.success(result);
     }
 
     /** 黑名单列表 */

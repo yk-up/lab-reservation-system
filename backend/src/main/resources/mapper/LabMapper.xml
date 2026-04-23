@@ -27,6 +27,20 @@
         SELECT * FROM lab WHERE id = #{id} LIMIT 1
     </select>
 
+    <select id="findUsageStats" resultType="map">
+        SELECT
+            l.id AS labId,
+            l.name AS labName,
+            l.location AS location,
+            COUNT(r.id) AS reservationCount
+        FROM lab l
+        LEFT JOIN reservation r
+            ON r.lab_id = l.id
+           AND r.status IN (0, 1, 4)
+        GROUP BY l.id, l.name, l.location
+        ORDER BY reservationCount DESC, l.id ASC
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO lab (name, location, capacity, description, status, admin_id)
         VALUES (#{name}, #{location}, #{capacity}, #{description}, #{status}, #{adminId})

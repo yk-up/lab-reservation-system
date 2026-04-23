@@ -1,7 +1,6 @@
 package com.lab.reservation.service;
 
 import com.lab.reservation.entity.Lab;
-import com.lab.reservation.entity.TimeSlot;
 import com.lab.reservation.mapper.LabMapper;
 import com.lab.reservation.mapper.ReservationMapper;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +26,22 @@ public class LabService {
         return labMapper.findAll(null);
     }
 
+    public List<Map<String, Object>> usageStats() {
+        List<Map<String, Object>> rows = labMapper.findUsageStats();
+        long totalReservations = 0L;
+        for (Map<String, Object> row : rows) {
+            totalReservations += ((Number) row.getOrDefault("reservationCount", 0L)).longValue();
+        }
+        for (int i = 0; i < rows.size(); i++) {
+            Map<String, Object> row = rows.get(i);
+            long count = ((Number) row.getOrDefault("reservationCount", 0L)).longValue();
+            double usageRate = totalReservations == 0 ? 0D : (count * 100.0 / totalReservations);
+            row.put("rank", i + 1);
+            row.put("usageRate", Math.round(usageRate * 10) / 10.0);
+        }
+        return rows;
+    }
+
     public Lab getById(Long id) {
         Lab lab = labMapper.findById(id);
         if (lab == null) throw new IllegalArgumentException("实验室不存在");
@@ -46,17 +61,12 @@ public class LabService {
         labMapper.updateStatus(id, status);
     }
 
-    /**
-     * 查询某天某实验室的空闲时段（用于日历视图展示）
-     * 将当天已有的审核通过/待审核预约从时间轴中剔除，返回剩余空闲区间
-     */
     public List<Map<String, Object>> getAvailableSlots(Long labId, LocalDate date) {
         LocalDateTime dayStart = date.atStartOfDay();
         LocalDateTime dayEnd = date.atTime(LocalTime.MAX);
 
         var booked = reservationMapper.findByLabAndTimeRange(labId, dayStart, dayEnd);
 
-        // 简单示例：以30分钟为粒度枚举该天8:00-22:00所有格子，标记哪些已被占用
         List<Map<String, Object>> slots = new ArrayList<>();
         LocalDateTime cursor = date.atTime(8, 0);
         LocalDateTime endOfDay = date.atTime(22, 0);
@@ -65,7 +75,6 @@ public class LabService {
             LocalDateTime slotEnd = cursor.plusMinutes(30);
             boolean occupied = false;
             for (var r : booked) {
-                // 区间重叠判断
                 if (r.getStartTime().isBefore(slotEnd) && r.getEndTime().isAfter(cursor)) {
                     occupied = true;
                     break;
