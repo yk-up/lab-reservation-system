@@ -1,5 +1,6 @@
 package com.lab.reservation.controller;
 
+import com.lab.reservation.config.PublicApi;
 import com.lab.reservation.entity.Lab;
 import com.lab.reservation.service.LabService;
 import com.lab.reservation.util.UserContext;
@@ -22,12 +23,14 @@ public class LabController {
 
     /** 获取所有开放实验室（不需要登录） */
     @GetMapping
+    @PublicApi
     public Result<?> list() {
         return Result.success(labService.listOpenLabs());
     }
 
     /** 实验室使用率统计（用户端展示） */
     @GetMapping("/usage")
+    @PublicApi
     public Result<?> usage() {
         List<Map<String, Object>> rows = labService.usageStats();
         long totalReservations = 0L;
@@ -42,6 +45,7 @@ public class LabController {
 
     /** 获取指定实验室某天的空闲时段（日历视图） */
     @GetMapping("/{id}/slots")
+    @PublicApi
     public Result<?> availableSlots(
             @PathVariable Long id,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {

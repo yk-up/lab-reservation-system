@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.method.HandlerMethod;
 
 @Slf4j
 @Component
@@ -24,10 +25,19 @@ public class JwtInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        String header = request.getHeader("Authorization");
-        // 没有携带 token，放行（Controller 内部自行判断是否需要权限）
-        if (!StringUtils.hasText(header) || !header.startsWith("Bearer ")) {
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             return true;
+        }
+
+        boolean isPublicApi = isPublicApi(handler);
+        String header = request.getHeader("Authorization");
+        // 默认所有接口都要求登录，只有标注 @PublicApi 的接口可匿名访问
+        if (!StringUtils.hasText(header) || !header.startsWith("Bearer ")) {
+            if (isPublicApi) {
+                return true;
+            }
+            writeUnauthorized(response);
+            return false;
         }
 
         String token = header.substring(7);
@@ -58,5 +68,13 @@ public class JwtInterceptor implements HandlerInterceptor {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
         response.getWriter().write(objectMapper.writeValueAsString(Result.unauthorized()));
+    }
+
+    private boolean isPublicApi(Object handler) {
+        if (!(handler instanceof HandlerMethod handlerMethod)) {
+            return false;
+        }
+        return handlerMethod.hasMethodAnnotation(PublicApi.class)
+                || handlerMethod.getBeanType().isAnnotationPresent(PublicApi.class);
     }
 }
