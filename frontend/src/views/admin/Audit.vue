@@ -96,15 +96,18 @@
         <el-table-column label="申请时间" width="140">
           <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column label="操作" width="230" fixed="right">
           <template #default="{ row }">
-            <template v-if="row.status === 0">
-              <el-button type="success" size="small" @click="approve(row)" :loading="processingId === row.id + '_1'">
-                通过
-              </el-button>
-              <el-button type="danger" size="small" plain @click="openReject(row)">拒绝</el-button>
-            </template>
-            <span v-else style="color: #909399; font-size: 12px">已处理</span>
+            <div class="action-group">
+              <template v-if="row.status === 0">
+                <el-button type="success" size="small" @click="approve(row)" :loading="processingId === row.id + '_1'">
+                  通过
+                </el-button>
+                <el-button type="danger" size="small" plain @click="openReject(row)">拒绝</el-button>
+              </template>
+              <span v-else class="processed-text">已处理</span>
+              <el-button size="small" @click="openDetail(row)">详情</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -146,6 +149,58 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="detailVisible" title="预约申请详情" width="560px">
+      <div v-if="detailItem" class="detail-panel">
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="detail-label">预约用途</span>
+            <span class="detail-value">{{ detailItem.title || '-' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">当前状态</span>
+            <el-tag :type="statusTagType(detailItem.status)" effect="light">{{ statusText(detailItem.status) }}</el-tag>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">申请人</span>
+            <span class="detail-value">{{ detailItem.realName || '-' }}（{{ detailItem.username || detailItem.userId }}）</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">实验室</span>
+            <span class="detail-value">{{ detailItem.labName || `实验室 #${detailItem.labId}` }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">预约时间</span>
+            <span class="detail-value">{{ formatFullDateTime(detailItem.startTime) }} - {{ formatFullDateTime(detailItem.endTime) }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">参与人数</span>
+            <span class="detail-value">{{ detailItem.attendees || 0 }} 人</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">申请时间</span>
+            <span class="detail-value">{{ formatFullDateTime(detailItem.createTime) }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">更新时间</span>
+            <span class="detail-value">{{ formatFullDateTime(detailItem.updateTime) }}</span>
+          </div>
+        </div>
+
+        <div class="detail-block">
+          <div class="detail-label">申请备注</div>
+          <div class="detail-content">{{ detailItem.remark || '未填写备注' }}</div>
+        </div>
+
+        <div v-if="detailItem.rejectReason" class="detail-block">
+          <div class="detail-label">拒绝原因</div>
+          <div class="detail-content reject-text">{{ detailItem.rejectReason }}</div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="detailVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="batchRejectVisible" title="批量拒绝预约" width="420px">
       <p style="margin-bottom: 0.75rem; font-size: 0.875rem; color: #606266;">
         本次将拒绝 <strong>{{ selectedPendingIds.length }}</strong> 条待审核预约。
@@ -178,6 +233,8 @@ const list = ref([])
 const rejectVisible = ref(false)
 const rejectReason = ref('')
 const currentItem = ref(null)
+const detailVisible = ref(false)
+const detailItem = ref(null)
 const processingId = ref('')
 const processingBatch = ref(false)
 const selectedRows = ref([])
@@ -201,6 +258,7 @@ const selectedPendingIds = computed(() =>
 )
 
 const formatDateTime = t => (t ? dayjs(t).format('MM-DD HH:mm') : '-')
+const formatFullDateTime = t => (t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-')
 const formatTime = t => (t ? dayjs(t).format('HH:mm') : '-')
 const statusText = s => ['待审核', '已通过', '已拒绝', '已取消', '已完成'][s] ?? '未知'
 const statusTagType = s => ({ 0: 'warning', 1: 'success', 2: 'danger', 3: 'info', 4: '' }[s] || 'info')
@@ -259,6 +317,11 @@ async function approve(row) {
   } finally {
     processingId.value = ''
   }
+}
+
+function openDetail(row) {
+  detailItem.value = row
+  detailVisible.value = true
 }
 
 function openReject(row) {
@@ -339,9 +402,64 @@ onMounted(loadData)
 .filter-card { padding-bottom: 0.25rem; }
 .filter-form { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 .table-toolbar { display: flex; gap: 8px; }
+.action-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.processed-text {
+  color: #909399;
+  font-size: 12px;
+}
+.detail-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 20px;
+}
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.detail-label {
+  font-size: 12px;
+  color: #909399;
+}
+.detail-value {
+  color: #303133;
+  line-height: 1.5;
+  word-break: break-word;
+}
+.detail-block {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f7f9fc;
+}
+.detail-content {
+  margin-top: 6px;
+  color: #303133;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.reject-text {
+  color: #f56c6c;
+}
 .pagination-wrap {
   display: flex;
   justify-content: flex-end;
   margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
