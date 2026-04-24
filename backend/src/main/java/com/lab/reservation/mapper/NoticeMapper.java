@@ -11,5 +11,5 @@ public interface NoticeMapper {
     List<Notice> findByUserId(@Param("userId") Long userId);
     int countUnread(@Param("userId") Long userId);
     int markAllRead(@Param("userId") Long userId);
-    int markRead(@Param("id") Long id);
+    int markRead(@Param("id") Long id, @Param("userId") Long userId);
 }

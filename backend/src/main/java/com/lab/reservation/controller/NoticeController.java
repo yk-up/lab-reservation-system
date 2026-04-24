@@ -31,7 +31,10 @@ public class NoticeController {
 
     @PutMapping("/{id}/read")
     public Result<?> read(@PathVariable Long id) {
-        noticeMapper.markRead(id);
+        int updated = noticeMapper.markRead(id, UserContext.getUserId());
+        if (updated == 0) {
+            return Result.fail(404, "通知不存在或无权限操作");
+        }
         return Result.success();
     }
 }

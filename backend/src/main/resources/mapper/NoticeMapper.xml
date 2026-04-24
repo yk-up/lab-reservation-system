@@ -32,7 +32,10 @@
     </update>
 
     <update id="markRead">
-        UPDATE notice SET is_read = 1 WHERE id = #{id}
+        UPDATE notice
+        SET is_read = 1
+        WHERE id = #{id}
+          AND user_id = #{userId}
     </update>
 
 </mapper>
