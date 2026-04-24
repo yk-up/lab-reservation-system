@@ -111,4 +111,17 @@
           )
     </select>
 
+    <select id="findDailyTrend" resultType="map">
+        SELECT
+            DATE(r.create_time) AS stat_date,
+            COUNT(*) AS total_count,
+            SUM(CASE WHEN r.status = 1 THEN 1 ELSE 0 END) AS approved_count,
+            SUM(CASE WHEN r.status = 2 THEN 1 ELSE 0 END) AS rejected_count
+        FROM reservation r
+        WHERE r.create_time <![CDATA[>=]]> #{startTime}
+          AND r.create_time <![CDATA[<=]]> #{endTime}
+        GROUP BY DATE(r.create_time)
+        ORDER BY stat_date ASC
+    </select>
+
 </mapper>
