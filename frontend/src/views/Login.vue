@@ -1,5 +1,11 @@
 <template>
   <div class="login-page">
+    <div class="background-decoration" aria-hidden="true">
+      <span class="glow glow-1"></span>
+      <span class="glow glow-2"></span>
+      <span class="glow glow-3"></span>
+      <span class="grid-mask"></span>
+    </div>
     <div class="login-card">
       <div class="login-header">
         <div class="logo">
@@ -93,7 +99,10 @@ async function handleLogin() {
   position: relative;
   overflow: hidden;
   background:
-    linear-gradient(180deg, rgba(28, 42, 74, 0.42) 0%, rgba(23, 36, 66, 0.55) 100%),
+    linear-gradient(135deg, rgba(7, 15, 35, 0.5) 0%, rgba(14, 31, 64, 0.72) 48%, rgba(6, 12, 28, 0.82) 100%),
+    radial-gradient(circle at 20% 20%, rgba(97, 170, 255, 0.24), transparent 28%),
+    radial-gradient(circle at 80% 18%, rgba(112, 87, 255, 0.2), transparent 30%),
+    radial-gradient(circle at 50% 100%, rgba(31, 221, 255, 0.12), transparent 32%),
     url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=1920&q=80')
       center center / cover no-repeat;
   padding: 1rem;
@@ -104,8 +113,9 @@ async function handleLogin() {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.24), transparent 40%),
-    radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.2), transparent 36%);
+    linear-gradient(115deg, rgba(255, 255, 255, 0.08), transparent 36%),
+    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.18), transparent 32%),
+    radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.14), transparent 30%);
   pointer-events: none;
 }
 
@@ -113,21 +123,92 @@ async function handleLogin() {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(10, 18, 36, 0.08) 0%, rgba(10, 18, 36, 0.45) 100%);
+  background:
+    linear-gradient(180deg, rgba(10, 18, 36, 0.08) 0%, rgba(10, 18, 36, 0.5) 100%),
+    radial-gradient(circle at center, transparent 0%, rgba(6, 12, 24, 0.24) 100%);
   pointer-events: none;
 }
 
+.background-decoration {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(8px);
+  opacity: 0.85;
+  animation: floatGlow 16s ease-in-out infinite;
+}
+
+.glow-1 {
+  width: 24rem;
+  height: 24rem;
+  top: -8rem;
+  left: -6rem;
+  background: radial-gradient(circle, rgba(118, 196, 255, 0.34) 0%, rgba(118, 196, 255, 0) 72%);
+}
+
+.glow-2 {
+  width: 22rem;
+  height: 22rem;
+  right: -5rem;
+  top: 12%;
+  background: radial-gradient(circle, rgba(150, 108, 255, 0.3) 0%, rgba(150, 108, 255, 0) 72%);
+  animation-delay: -5s;
+}
+
+.glow-3 {
+  width: 26rem;
+  height: 26rem;
+  bottom: -10rem;
+  left: 32%;
+  background: radial-gradient(circle, rgba(59, 214, 255, 0.2) 0%, rgba(59, 214, 255, 0) 70%);
+  animation-delay: -9s;
+}
+
+.grid-mask {
+  position: absolute;
+  inset: 0;
+  opacity: 0.18;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.85), transparent 78%);
+}
+
 .login-card {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
-  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.82));
+  backdrop-filter: blur(14px);
+  border-radius: 1.25rem;
   padding: 2.5rem 2rem;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 24px 70px rgba(3, 10, 28, 0.35),
+    0 10px 30px rgba(21, 59, 126, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   position: relative;
   z-index: 2;
+}
+
+.login-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.16));
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 .login-header {
@@ -154,8 +235,17 @@ async function handleLogin() {
 .login-btn {
   width: 100%;
   margin-top: 0.5rem;
-  height: 2.75rem;
+  height: 2.9rem;
   font-size: 1rem;
+  border: none;
+  background: linear-gradient(135deg, #356dff 0%, #5b5df0 100%);
+  box-shadow: 0 12px 30px rgba(65, 92, 241, 0.32);
+}
+
+.login-btn:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #2f63f0 0%, #5355e4 100%);
+  box-shadow: 0 16px 34px rgba(65, 92, 241, 0.36);
 }
 
 .login-footer {
@@ -169,5 +259,25 @@ async function handleLogin() {
   color: #409eff;
   text-decoration: none;
   margin-left: 0.25rem;
+}
+
+@keyframes floatGlow {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -14px, 0) scale(1.05);
+  }
+}
+
+@media (max-width: 768px) {
+  .grid-mask {
+    display: none;
+  }
+
+  .login-card {
+    padding: 2.2rem 1.4rem;
+  }
 }
 </style>
