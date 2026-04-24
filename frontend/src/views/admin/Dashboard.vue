@@ -61,6 +61,71 @@
       </div>
     </div>
 
+    <div class="card trend-card mt-3">
+      <div class="section-head">
+        <div>
+          <h3 class="section-title">预约趋势统计分析</h3>
+          <p class="section-subtitle">按申请日期观察近一段时间的预约总量、通过量和拒绝量变化</p>
+        </div>
+        <el-radio-group v-model="trendRange" size="small" @change="loadTrend">
+          <el-radio-button label="7">近7天</el-radio-button>
+          <el-radio-button label="15">近15天</el-radio-button>
+          <el-radio-button label="30">近30天</el-radio-button>
+        </el-radio-group>
+      </div>
+
+      <template v-if="trendSeries.length">
+        <div class="trend-summary">
+          <div class="trend-summary-card">
+            <div class="trend-summary-label">预约总量</div>
+            <div class="trend-summary-value">{{ trendSummary.totalCount ?? 0 }}</div>
+          </div>
+          <div class="trend-summary-card">
+            <div class="trend-summary-label">平均每日</div>
+            <div class="trend-summary-value">{{ formatMetric(trendSummary.avgDaily) }}</div>
+          </div>
+          <div class="trend-summary-card">
+            <div class="trend-summary-label">通过率</div>
+            <div class="trend-summary-value">{{ formatMetric(trendSummary.passRate) }}%</div>
+          </div>
+          <div class="trend-summary-card">
+            <div class="trend-summary-label">峰值日期</div>
+            <div class="trend-summary-value">{{ trendSummary.peakLabel || '-' }}</div>
+          </div>
+        </div>
+
+        <div class="trend-analysis">
+          近 {{ trendSummary.days || trendRange }} 天共收到
+          <strong>{{ trendSummary.totalCount ?? 0 }}</strong> 条预约申请，
+          其中通过 <strong>{{ trendSummary.approvedCount ?? 0 }}</strong> 条，
+          拒绝 <strong>{{ trendSummary.rejectedCount ?? 0 }}</strong> 条；
+          预约高峰出现在 <strong>{{ trendSummary.peakLabel || '-' }}</strong>，
+          当日共有 <strong>{{ trendSummary.peakCount ?? 0 }}</strong> 条申请。
+        </div>
+
+        <div class="trend-legend">
+          <span><i class="legend-dot total"></i>总量</span>
+          <span><i class="legend-dot approved"></i>通过</span>
+          <span><i class="legend-dot rejected"></i>拒绝</span>
+        </div>
+
+        <div class="trend-chart-wrap">
+          <div class="trend-chart">
+            <div v-for="item in trendSeries" :key="item.date" class="trend-group">
+              <div class="trend-bars">
+                <span class="trend-bar total" :style="{ height: trendBarHeight(item.totalCount) }"></span>
+                <span class="trend-bar approved" :style="{ height: trendBarHeight(item.approvedCount) }"></span>
+                <span class="trend-bar rejected" :style="{ height: trendBarHeight(item.rejectedCount) }"></span>
+              </div>
+              <div class="trend-total">{{ item.totalCount }}</div>
+              <div class="trend-date">{{ item.label }}</div>
+            </div>
+          </div>
+        </div>
+      </template>
+      <el-empty v-else description="暂无趋势统计数据" />
+    </div>
+
     <div class="card mt-3">
       <h3 style="margin-bottom: 1rem; font-size: 1rem; font-weight: 600;">待审核预约</h3>
       <el-table :data="pendingList" stripe style="width: 100%">
@@ -110,6 +175,9 @@ const data = ref({})
 const pendingList = ref([])
 const usageList = ref([])
 const usageTotal = ref(0)
+const trendRange = ref('7')
+const trendSeries = ref([])
+const trendSummary = ref({})
 const rejectDialog = ref(false)
 const rejectReason = ref('')
 const currentRow = ref(null)
@@ -123,12 +191,23 @@ const statCards = [
 ]
 
 const maxUsageCount = computed(() => Math.max(...usageList.value.map(item => Number(item.reservationCount) || 0), 1))
+const maxTrendCount = computed(() => Math.max(...trendSeries.value.map(item => Number(item.totalCount) || 0), 1))
 
 const formatDateTime = t => (t ? dayjs(t).format('MM-DD HH:mm') : '-')
 const formatTime = t => (t ? dayjs(t).format('HH:mm') : '-')
+const formatMetric = value => {
+  const num = Number(value) || 0
+  return Number.isInteger(num) ? String(num) : num.toFixed(1)
+}
 
 function barPercent(item) {
   return Math.max(12, Math.round(((Number(item.reservationCount) || 0) / maxUsageCount.value) * 100))
+}
+
+function trendBarHeight(value) {
+  const num = Number(value) || 0
+  if (num <= 0) return '8px'
+  return `${Math.max(10, Math.round((num / maxTrendCount.value) * 100))}%`
 }
 
 function openReject(row) {
@@ -144,6 +223,7 @@ async function approve(row) {
     ElMessage.success('已通过审核')
     pendingList.value = pendingList.value.filter(r => r.id !== row.id)
     data.value.pendingCount = Math.max(0, (data.value.pendingCount || 0) - 1)
+    await loadTrend()
   } finally {
     auditing.value = false
   }
@@ -157,9 +237,16 @@ async function confirmReject() {
     pendingList.value = pendingList.value.filter(r => r.id !== currentRow.value.id)
     data.value.pendingCount = Math.max(0, (data.value.pendingCount || 0) - 1)
     rejectDialog.value = false
+    await loadTrend()
   } finally {
     auditing.value = false
   }
+}
+
+async function loadTrend() {
+  const res = await adminApi.reservationTrend({ days: Number(trendRange.value) })
+  trendSeries.value = res.data?.series || []
+  trendSummary.value = res.data?.summary || {}
 }
 
 onMounted(async () => {
@@ -172,6 +259,7 @@ onMounted(async () => {
   pendingList.value = pendingRes.data || []
   usageList.value = usageRes.data?.ranking || []
   usageTotal.value = usageRes.data?.totalReservations || 0
+  await loadTrend()
 })
 </script>
 
@@ -216,6 +304,9 @@ onMounted(async () => {
   gap: 1rem;
 }
 .usage-card, .ranking-card {
+  padding: 1.25rem;
+}
+.trend-card {
   padding: 1.25rem;
 }
 .section-head {
@@ -301,13 +392,125 @@ onMounted(async () => {
   color: #606266;
   font-size: 0.8rem;
 }
+.trend-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+}
+.trend-summary-card {
+  border-radius: 0.9rem;
+  padding: 1rem;
+  background: linear-gradient(180deg, #f8fbff 0%, #f3f7ff 100%);
+  border: 1px solid #e8eefc;
+}
+.trend-summary-label {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+.trend-summary-value {
+  margin-top: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+.trend-analysis {
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 0.85rem;
+  background: #f8fafc;
+  color: #475569;
+  line-height: 1.75;
+}
+.trend-legend {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-bottom: 0.75rem;
+}
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-right: 6px;
+}
+.legend-dot.total { background: #409eff; }
+.legend-dot.approved { background: #67c23a; }
+.legend-dot.rejected { background: #f56c6c; }
+.trend-chart-wrap {
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  display: flex;
+  justify-content: center;
+}
+.trend-chart {
+  width: max-content;
+  min-width: 100%;
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-end;
+  justify-content: center;
+}
+.trend-group {
+  width: 42px;
+  flex-shrink: 0;
+}
+.trend-bars {
+  height: 220px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 2px;
+}
+.trend-bar {
+  width: 10px;
+  min-height: 8px;
+  border-radius: 999px 999px 0 0;
+  transition: height 0.2s ease;
+}
+.trend-bar.total {
+  background: linear-gradient(180deg, #79bbff, #409eff);
+}
+.trend-bar.approved {
+  background: linear-gradient(180deg, #95d475, #67c23a);
+}
+.trend-bar.rejected {
+  background: linear-gradient(180deg, #f89898, #f56c6c);
+}
+.trend-total {
+  margin-top: 0.5rem;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+}
+.trend-date {
+  margin-top: 0.25rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
 @media (max-width: 1100px) {
   .usage-section {
     grid-template-columns: 1fr;
   }
+  .trend-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 @media (max-width: 768px) {
   .usage-row {
+    grid-template-columns: 1fr;
+  }
+  .section-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .trend-summary {
     grid-template-columns: 1fr;
   }
 }

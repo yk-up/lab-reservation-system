@@ -40,6 +40,7 @@ export const noticeApi = {
 export const adminApi = {
   dashboard: () => request.get('/admin/dashboard'),
   labUsage: () => request.get('/admin/lab-usage'),
+  reservationTrend: (params) => request.get('/admin/reservation-trend', { params }),
   blacklist: () => request.get('/admin/blacklist'),
   addBlacklist: (data) => request.post('/admin/blacklist', data),
   removeBlacklist: (id) => request.delete(`/admin/blacklist/${id}`)
