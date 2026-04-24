@@ -14,7 +14,13 @@
     </div>
 
     <div v-else-if="filteredList.length === 0" class="mt-3">
-      <el-empty description="暂无预约记录" />
+      <AppEmptyState
+        type="reservation"
+        :title="activeTab === 'all' ? '暂无预约记录' : '当前分类下暂无预约记录'"
+        :description="activeTab === 'all' ? '你还没有提交过实验室预约，先去挑选一个合适的实验室吧。' : '当前标签下还没有对应的预约记录，可以切换其他分类查看。'"
+        action-text="去预约实验室"
+        @action="goToLabs"
+      />
     </div>
 
     <div v-else class="reservation-list mt-2">
@@ -66,11 +72,14 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { WarningFilled } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { reservationApi } from '@/api'
+import AppEmptyState from '@/components/AppEmptyState.vue'
 
+const router = useRouter()
 const loading = ref(true)
 const list = ref([])
 const activeTab = ref('all')
@@ -91,6 +100,10 @@ function formatDateTime(t) {
 
 function formatTime(t) {
   return t ? dayjs(t).format('HH:mm') : '-'
+}
+
+function goToLabs() {
+  router.push('/labs')
 }
 
 async function cancelReservation(item) {

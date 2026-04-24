@@ -13,7 +13,15 @@
     </div>
 
     <div v-else-if="notices.length === 0" class="mt-3">
-      <el-empty description="暂无消息" />
+      <AppEmptyState
+        type="notice"
+        title="暂无消息通知"
+        description="当前还没有新的通知消息，预约审核结果和提醒会第一时间显示在这里。"
+        secondary-action-text="返回上一页"
+        action-text="查看我的预约"
+        @secondary-action="goBack"
+        @action="goToReservations"
+      />
     </div>
 
     <template v-else>
@@ -79,6 +87,7 @@ import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 import { noticeApi } from '@/api'
 import { useUserStore } from '@/store/user'
+import AppEmptyState from '@/components/AppEmptyState.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -112,6 +121,14 @@ function noticeTargetLabel(n) {
   if (n.type === 2) return '查看拒绝详情'
   if (n.type === 3) return '查看预约安排'
   return ''
+}
+
+function goBack() {
+  router.back()
+}
+
+function goToReservations() {
+  router.push('/my-reservations')
 }
 
 async function loadNotices() {

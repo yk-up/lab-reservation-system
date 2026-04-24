@@ -30,7 +30,16 @@
           </template>
         </el-table-column>
       </el-table>
-      <el-empty v-if="!loading && list.length === 0" description="黑名单为空" />
+      <AppEmptyState
+        v-if="!loading && list.length === 0"
+        type="blacklist"
+        title="暂无黑名单数据"
+        description="当前没有被加入黑名单的用户。如需限制预约，可通过右上角按钮手动添加。"
+        secondary-action-text="返回上一页"
+        action-text="加入黑名单"
+        @secondary-action="goBack"
+        @action="addDialog = true"
+      />
     </div>
 
     <el-dialog v-model="addDialog" title="加入黑名单" width="420px">
@@ -60,11 +69,14 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { adminApi } from '@/api'
+import AppEmptyState from '@/components/AppEmptyState.vue'
 
+const router = useRouter()
 const loading = ref(true)
 const list = ref([])
 const addDialog = ref(false)
@@ -73,6 +85,10 @@ const addFormRef = ref()
 const addForm = reactive({ userId: null, reason: '', expireTime: null })
 
 const formatDateTime = (t) => t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-'
+
+function goBack() {
+  router.back()
+}
 
 async function removeFromBlacklist(row) {
   await ElMessageBox.confirm(

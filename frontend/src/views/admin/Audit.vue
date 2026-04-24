@@ -111,7 +111,16 @@
           </template>
         </el-table-column>
       </el-table>
-      <el-empty v-if="!loading && list.length === 0" description="暂无预约记录" />
+      <AppEmptyState
+        v-if="!loading && list.length === 0"
+        :type="isFilterEmpty ? 'search' : 'audit'"
+        :title="isFilterEmpty ? '未找到符合条件的审核记录' : '暂无审核记录'"
+        :description="isFilterEmpty ? '当前筛选条件下没有匹配的审核记录，建议重置后重新查询。' : '当前还没有需要展示的审核记录，可以稍后刷新再查看。'"
+        :secondary-action-text="isFilterEmpty ? '重置筛选' : ''"
+        action-text="刷新列表"
+        @secondary-action="resetFilters"
+        @action="loadData"
+      />
 
       <div class="pagination-wrap" v-if="list.length > pageSize">
         <el-pagination
@@ -227,6 +236,7 @@ import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { reservationApi } from '@/api'
+import AppEmptyState from '@/components/AppEmptyState.vue'
 
 const loading = ref(true)
 const list = ref([])
@@ -256,6 +266,7 @@ const pagedList = computed(() => {
 const selectedPendingIds = computed(() =>
   selectedRows.value.filter(row => row.status === 0).map(row => row.id)
 )
+const isFilterEmpty = computed(() => Boolean(filters.keyword || filters.dateRange?.length))
 
 const formatDateTime = t => (t ? dayjs(t).format('MM-DD HH:mm') : '-')
 const formatFullDateTime = t => (t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-')

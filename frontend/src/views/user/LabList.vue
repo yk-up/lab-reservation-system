@@ -117,7 +117,16 @@
           </div>
         </div>
 
-        <el-empty v-if="filteredLabs.length === 0" description="暂无可用实验室" />
+        <AppEmptyState
+          v-if="filteredLabs.length === 0"
+          :type="isSearchEmpty ? 'search' : 'reservation'"
+          :title="isSearchEmpty ? '未找到相关实验室' : '暂无可用实验室'"
+          :description="isSearchEmpty ? `没有找到与“${searchText.trim()}”相关的实验室，试试更换关键词。` : '当前暂时没有可展示的实验室，请稍后再来查看。'"
+          :secondary-action-text="isSearchEmpty ? '清空搜索' : ''"
+          :action-text="isSearchEmpty ? '查看全部实验室' : '返回上一页'"
+          @secondary-action="clearSearch"
+          @action="isSearchEmpty ? clearSearch() : goBack()"
+        />
       </template>
     </el-skeleton>
   </div>
@@ -128,6 +137,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
 import { labApi } from '@/api'
+import AppEmptyState from '@/components/AppEmptyState.vue'
 
 const router = useRouter()
 const loading = ref(true)
@@ -139,6 +149,7 @@ const searchText = ref('')
 const filteredLabs = computed(() =>
   labs.value.filter(lab => !searchText.value || lab.name.includes(searchText.value))
 )
+const isSearchEmpty = computed(() => !!searchText.value.trim() && labs.value.length > 0 && filteredLabs.value.length === 0)
 
 const maxUsageCount = computed(() => Math.max(...usageList.value.map(item => Number(item.reservationCount) || 0), 1))
 
@@ -153,6 +164,14 @@ function rankClass(rank) {
   if (rank === 2) return 'rank-top2'
   if (rank === 3) return 'rank-top3'
   return ''
+}
+
+function clearSearch() {
+  searchText.value = ''
+}
+
+function goBack() {
+  router.back()
 }
 
 function goBook(lab) {
