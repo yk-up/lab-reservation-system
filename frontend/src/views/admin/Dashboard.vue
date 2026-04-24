@@ -64,43 +64,43 @@
     <div class="card trend-card mt-3">
       <div class="section-head">
         <div>
-          <h3 class="section-title">预约趋势统计分析</h3>
-          <p class="section-subtitle">按申请日期观察近一段时间的预约总量、通过量和拒绝量变化</p>
+          <h3 class="section-title">预约趋势分析</h3>
+          <p class="section-subtitle">按创建时间统计预约趋势，辅助排班和资源规划</p>
         </div>
-        <el-radio-group v-model="trendRange" size="small" @change="loadTrend">
-          <el-radio-button label="7">近7天</el-radio-button>
-          <el-radio-button label="15">近15天</el-radio-button>
-          <el-radio-button label="30">近30天</el-radio-button>
-        </el-radio-group>
+        <div class="trend-toolbar">
+          <el-radio-group v-model="trendDisplayMode" size="small">
+            <el-radio-button label="daily">按天展示</el-radio-button>
+            <el-radio-button label="weekly">按周展示</el-radio-button>
+          </el-radio-group>
+          <el-radio-group v-model="trendRange" size="small" @change="loadTrend">
+            <el-radio-button label="7">近7天</el-radio-button>
+            <el-radio-button label="15">近15天</el-radio-button>
+            <el-radio-button label="30">近30天</el-radio-button>
+          </el-radio-group>
+        </div>
       </div>
 
       <template v-if="trendSeries.length">
         <div class="trend-summary">
           <div class="trend-summary-card">
-            <div class="trend-summary-label">预约总量</div>
+            <div class="trend-summary-label">总预约数</div>
             <div class="trend-summary-value">{{ trendSummary.totalCount ?? 0 }}</div>
           </div>
           <div class="trend-summary-card">
-            <div class="trend-summary-label">平均每日</div>
-            <div class="trend-summary-value">{{ formatMetric(trendSummary.avgDaily) }}</div>
+            <div class="trend-summary-label">通过 / 拒绝</div>
+            <div class="trend-summary-value">{{ trendSummary.approvedCount ?? 0 }} / {{ trendSummary.rejectedCount ?? 0 }}</div>
           </div>
           <div class="trend-summary-card">
-            <div class="trend-summary-label">通过率</div>
-            <div class="trend-summary-value">{{ formatMetric(trendSummary.passRate) }}%</div>
+            <div class="trend-summary-label">峰值日</div>
+            <div class="trend-summary-value">
+              {{ trendSummary.peakDate || '-' }}
+              <span v-if="trendSummary.peakCount" class="trend-summary-sub">（{{ trendSummary.peakCount }}）</span>
+            </div>
           </div>
           <div class="trend-summary-card">
-            <div class="trend-summary-label">峰值日期</div>
-            <div class="trend-summary-value">{{ trendSummary.peakLabel || '-' }}</div>
+            <div class="trend-summary-label">{{ trendChangeLabel }}</div>
+            <div class="trend-summary-value" :class="trendChangeClass">{{ trendChangeText }}</div>
           </div>
-        </div>
-
-        <div class="trend-analysis">
-          近 {{ trendSummary.days || trendRange }} 天共收到
-          <strong>{{ trendSummary.totalCount ?? 0 }}</strong> 条预约申请，
-          其中通过 <strong>{{ trendSummary.approvedCount ?? 0 }}</strong> 条，
-          拒绝 <strong>{{ trendSummary.rejectedCount ?? 0 }}</strong> 条；
-          预约高峰出现在 <strong>{{ trendSummary.peakLabel || '-' }}</strong>，
-          当日共有 <strong>{{ trendSummary.peakCount ?? 0 }}</strong> 条申请。
         </div>
 
         <div class="trend-legend">
@@ -109,16 +109,28 @@
           <span><i class="legend-dot rejected"></i>拒绝</span>
         </div>
 
-        <div class="trend-chart-wrap">
-          <div class="trend-chart">
-            <div v-for="item in trendSeries" :key="item.date" class="trend-group">
-              <div class="trend-bars">
-                <span class="trend-bar total" :style="{ height: trendBarHeight(item.totalCount) }"></span>
-                <span class="trend-bar approved" :style="{ height: trendBarHeight(item.approvedCount) }"></span>
-                <span class="trend-bar rejected" :style="{ height: trendBarHeight(item.rejectedCount) }"></span>
+        <div class="trend-list">
+          <div v-for="item in displayTrendSeries" :key="item.key" class="trend-row">
+            <div class="trend-date">{{ item.label }}</div>
+            <div class="trend-track">
+              <div class="trend-total-bar" :style="{ width: trendTotalWidth(item) }">
+                <span class="trend-segment approved" :style="{ width: trendApprovedWidth(item) }"></span>
+                <span class="trend-segment rejected" :style="{ width: trendRejectedWidth(item), left: trendApprovedWidth(item) }"></span>
               </div>
-              <div class="trend-total">{{ item.totalCount }}</div>
-              <div class="trend-date">{{ item.label }}</div>
+            </div>
+            <div class="trend-values">
+              <span class="trend-value total">
+                <i class="trend-value-dot total"></i>
+                总 {{ item.totalCount }}
+              </span>
+              <span class="trend-value approved">
+                <i class="trend-value-dot approved"></i>
+                通过 {{ item.approvedCount }}
+              </span>
+              <span class="trend-value rejected">
+                <i class="trend-value-dot rejected"></i>
+                拒绝 {{ item.rejectedCount }}
+              </span>
             </div>
           </div>
         </div>
@@ -166,7 +178,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 import { adminApi, reservationApi } from '@/api'
@@ -176,6 +188,7 @@ const pendingList = ref([])
 const usageList = ref([])
 const usageTotal = ref(0)
 const trendRange = ref('7')
+const trendDisplayMode = ref('daily')
 const trendSeries = ref([])
 const trendSummary = ref({})
 const rejectDialog = ref(false)
@@ -191,7 +204,59 @@ const statCards = [
 ]
 
 const maxUsageCount = computed(() => Math.max(...usageList.value.map(item => Number(item.reservationCount) || 0), 1))
-const maxTrendCount = computed(() => Math.max(...trendSeries.value.map(item => Number(item.totalCount) || 0), 1))
+const isDailyTrendView = computed(() => trendDisplayMode.value === 'daily')
+const trendGroupSize = computed(() => (isDailyTrendView.value ? 1 : 7))
+const displayTrendSeries = computed(() => {
+  if (isDailyTrendView.value) {
+    return trendSeries.value.map(item => ({
+      key: item.date,
+      label: item.label,
+      totalCount: Number(item.totalCount) || 0,
+      approvedCount: Number(item.approvedCount) || 0,
+      rejectedCount: Number(item.rejectedCount) || 0
+    }))
+  }
+
+  const groups = []
+  for (let i = 0; i < trendSeries.value.length; i += trendGroupSize.value) {
+    const chunk = trendSeries.value.slice(i, i + trendGroupSize.value)
+    if (!chunk.length) continue
+
+    groups.push({
+      key: `${chunk[0].date}-${chunk[chunk.length - 1].date}`,
+      label: `${chunk[0].label} ~ ${chunk[chunk.length - 1].label}`,
+      totalCount: chunk.reduce((sum, item) => sum + (Number(item.totalCount) || 0), 0),
+      approvedCount: chunk.reduce((sum, item) => sum + (Number(item.approvedCount) || 0), 0),
+      rejectedCount: chunk.reduce((sum, item) => sum + (Number(item.rejectedCount) || 0), 0)
+    })
+  }
+  return groups
+})
+const maxTrendCount = computed(() => Math.max(...displayTrendSeries.value.map(item => Number(item.totalCount) || 0), 1))
+const trendChange = computed(() => {
+  if (!displayTrendSeries.value.length) return { text: '0%', state: 'flat' }
+  const last = Number(displayTrendSeries.value[displayTrendSeries.value.length - 1]?.totalCount) || 0
+  const prev = Number(displayTrendSeries.value[displayTrendSeries.value.length - 2]?.totalCount) || 0
+
+  if (prev === 0) {
+    if (last === 0) return { text: '0%', state: 'flat' }
+    return { text: '+100%', state: 'up' }
+  }
+
+  const diff = ((last - prev) / prev) * 100
+  const rounded = Math.round(diff * 10) / 10
+  return {
+    text: `${rounded > 0 ? '+' : ''}${formatMetric(rounded)}%`,
+    state: rounded > 0 ? 'up' : rounded < 0 ? 'down' : 'flat'
+  }
+})
+const trendChangeLabel = computed(() => (isDailyTrendView.value ? '较前一天' : '较前7天'))
+const trendChangeText = computed(() => trendChange.value.text)
+const trendChangeClass = computed(() => ({
+  'is-up': trendChange.value.state === 'up',
+  'is-down': trendChange.value.state === 'down',
+  'is-flat': trendChange.value.state === 'flat'
+}))
 
 const formatDateTime = t => (t ? dayjs(t).format('MM-DD HH:mm') : '-')
 const formatTime = t => (t ? dayjs(t).format('HH:mm') : '-')
@@ -204,10 +269,24 @@ function barPercent(item) {
   return Math.max(12, Math.round(((Number(item.reservationCount) || 0) / maxUsageCount.value) * 100))
 }
 
-function trendBarHeight(value) {
-  const num = Number(value) || 0
-  if (num <= 0) return '8px'
-  return `${Math.max(10, Math.round((num / maxTrendCount.value) * 100))}%`
+function trendTotalWidth(item) {
+  const total = Number(item.totalCount) || 0
+  if (total <= 0) return '0%'
+  return `${Math.max(4, (total / maxTrendCount.value) * 100)}%`
+}
+
+function trendApprovedWidth(item) {
+  const total = Number(item.totalCount) || 0
+  const approved = Number(item.approvedCount) || 0
+  if (total <= 0 || approved <= 0) return '0%'
+  return `${(approved / total) * 100}%`
+}
+
+function trendRejectedWidth(item) {
+  const total = Number(item.totalCount) || 0
+  const rejected = Number(item.rejectedCount) || 0
+  if (total <= 0 || rejected <= 0) return '0%'
+  return `${(rejected / total) * 100}%`
 }
 
 function openReject(row) {
@@ -248,6 +327,10 @@ async function loadTrend() {
   trendSeries.value = res.data?.series || []
   trendSummary.value = res.data?.summary || {}
 }
+
+watch(trendRange, value => {
+  trendDisplayMode.value = Number(value) === 7 ? 'daily' : 'weekly'
+})
 
 onMounted(async () => {
   const [dashRes, pendingRes, usageRes] = await Promise.all([
@@ -308,6 +391,12 @@ onMounted(async () => {
 }
 .trend-card {
   padding: 1.25rem;
+}
+.trend-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 .section-head {
   display: flex;
@@ -414,13 +503,18 @@ onMounted(async () => {
   font-weight: 700;
   color: #1e293b;
 }
-.trend-analysis {
-  margin-bottom: 1rem;
-  padding: 0.9rem 1rem;
-  border-radius: 0.85rem;
-  background: #f8fafc;
+.trend-summary-sub {
+  margin-left: 0.15rem;
+  font-size: 0.95em;
+}
+.trend-summary-value.is-up {
+  color: #16a34a;
+}
+.trend-summary-value.is-down {
+  color: #dc2626;
+}
+.trend-summary-value.is-flat {
   color: #475569;
-  line-height: 1.75;
 }
 .trend-legend {
   display: flex;
@@ -440,59 +534,94 @@ onMounted(async () => {
 .legend-dot.total { background: #409eff; }
 .legend-dot.approved { background: #67c23a; }
 .legend-dot.rejected { background: #f56c6c; }
-.trend-chart-wrap {
-  overflow-x: auto;
-  padding-bottom: 0.25rem;
+.trend-list {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  gap: 0.9rem;
 }
-.trend-chart {
-  width: max-content;
-  min-width: 100%;
+.trend-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 170px;
+  align-items: center;
+  gap: 0.9rem;
+}
+.trend-track {
+  position: relative;
+  height: 18px;
+  border-radius: 999px;
+  background: #dce5f1;
+  overflow: hidden;
+}
+.trend-total-bar {
+  position: relative;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6aa7f8, #3f7fe6);
+  transition: width 0.2s ease;
+}
+.trend-segment {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.trend-segment.approved {
+  background: linear-gradient(90deg, #2fc3b0, #56ce9d);
+  border-radius: 999px;
+}
+.trend-segment.rejected {
+  background: linear-gradient(90deg, #ff9999, #f56c6c);
+}
+.trend-values {
   display: flex;
-  gap: 0.85rem;
-  align-items: flex-end;
-  justify-content: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
 }
-.trend-group {
-  width: 42px;
+.trend-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  font-weight: 600;
+  background: #f8fafc;
+  border: 1px solid transparent;
+}
+.trend-value.total {
+  color: #334155;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+.trend-value.approved {
+  color: #16a34a;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+.trend-value.rejected {
+  color: #dc2626;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+.trend-value-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
   flex-shrink: 0;
 }
-.trend-bars {
-  height: 220px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 4px;
-  padding: 0 2px;
+.trend-value-dot.total {
+  background: #409eff;
 }
-.trend-bar {
-  width: 10px;
-  min-height: 8px;
-  border-radius: 999px 999px 0 0;
-  transition: height 0.2s ease;
+.trend-value-dot.approved {
+  background: #67c23a;
 }
-.trend-bar.total {
-  background: linear-gradient(180deg, #79bbff, #409eff);
-}
-.trend-bar.approved {
-  background: linear-gradient(180deg, #95d475, #67c23a);
-}
-.trend-bar.rejected {
-  background: linear-gradient(180deg, #f89898, #f56c6c);
-}
-.trend-total {
-  margin-top: 0.5rem;
-  text-align: center;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #334155;
+.trend-value-dot.rejected {
+  background: #f56c6c;
 }
 .trend-date {
-  margin-top: 0.25rem;
-  text-align: center;
-  font-size: 0.75rem;
-  color: #94a3b8;
+  font-size: 0.9rem;
+  color: #64748b;
 }
 @media (max-width: 1100px) {
   .usage-section {
@@ -510,8 +639,17 @@ onMounted(async () => {
     flex-direction: column;
     align-items: stretch;
   }
+  .trend-toolbar {
+    width: 100%;
+  }
   .trend-summary {
     grid-template-columns: 1fr;
+  }
+  .trend-row {
+    grid-template-columns: 88px 1fr 128px;
+  }
+  .trend-values {
+    justify-content: flex-start;
   }
 }
 </style>
