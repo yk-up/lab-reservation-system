@@ -2,7 +2,7 @@ package com.lab.reservation.controller;
 
 import com.lab.reservation.config.PublicApi;
 import com.lab.reservation.dto.LoginRequest;
-import com.lab.reservation.entity.User;
+import com.lab.reservation.dto.RegisterRequest;
 import com.lab.reservation.service.AuthService;
 import com.lab.reservation.vo.Result;
 import jakarta.validation.Valid;
@@ -23,8 +23,8 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public Result<?> register(@RequestBody User user) {
-        authService.register(user);
+    public Result<?> register(@Valid @RequestBody RegisterRequest req) {
+        authService.register(req);
         return Result.success("注册成功");
     }
 }

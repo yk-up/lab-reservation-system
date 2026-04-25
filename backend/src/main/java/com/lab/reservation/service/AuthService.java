@@ -1,6 +1,7 @@
 package com.lab.reservation.service;
 
 import com.lab.reservation.dto.LoginRequest;
+import com.lab.reservation.dto.RegisterRequest;
 import com.lab.reservation.entity.User;
 import com.lab.reservation.mapper.UserMapper;
 import com.lab.reservation.util.JwtUtil;
@@ -38,11 +39,16 @@ public class AuthService {
         return result;
     }
 
-    public void register(User user) {
-        if (userMapper.findByUsername(user.getUsername()) != null) {
+    public void register(RegisterRequest req) {
+        if (userMapper.findByUsername(req.getUsername()) != null) {
             throw new IllegalArgumentException("用户名已存在");
         }
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        User user = new User();
+        user.setUsername(req.getUsername());
+        user.setRealName(req.getRealName());
+        user.setPassword(passwordEncoder.encode(req.getPassword()));
+        user.setEmail(req.getEmail());
+        user.setPhone(req.getPhone());
         user.setRole(0);
         user.setStatus(1);
         userMapper.insert(user);
