@@ -69,13 +69,13 @@
         </div>
         <div class="trend-toolbar">
           <el-radio-group v-model="trendDisplayMode" size="small">
-            <el-radio-button label="daily">每天</el-radio-button>
-            <el-radio-button label="weekly">每7天</el-radio-button>
+            <el-radio-button value="daily">每天</el-radio-button>
+            <el-radio-button value="weekly">每7天</el-radio-button>
           </el-radio-group>
           <el-radio-group v-model="trendRange" size="small" @change="loadTrend">
-            <el-radio-button label="7">近7天</el-radio-button>
-            <el-radio-button label="15">近15天</el-radio-button>
-            <el-radio-button label="30">近30天</el-radio-button>
+            <el-radio-button value="7">近7天</el-radio-button>
+            <el-radio-button value="15">近15天</el-radio-button>
+            <el-radio-button value="30">近30天</el-radio-button>
           </el-radio-group>
         </div>
       </div>
@@ -287,6 +287,14 @@ const formatMetric = value => {
   return Number.isInteger(num) ? String(num) : num.toFixed(1)
 }
 
+function ensureArray(value, fallbackKeys = []) {
+  if (Array.isArray(value)) return value
+  for (const key of fallbackKeys) {
+    if (Array.isArray(value?.[key])) return value[key]
+  }
+  return []
+}
+
 function barPercent(item) {
   return Math.max(12, Math.round(((Number(item.reservationCount) || 0) / maxUsageCount.value) * 100))
 }
@@ -341,21 +349,29 @@ async function confirmReject() {
 
 async function loadTrend() {
   const res = await adminApi.reservationTrend({ days: Number(trendRange.value) })
-  trendSeries.value = res.data?.series || []
+  trendSeries.value = ensureArray(res.data?.series)
   trendSummary.value = res.data?.summary || {}
 }
 
 onMounted(async () => {
-  const [dashRes, pendingRes, usageRes] = await Promise.all([
-    adminApi.dashboard(),
-    reservationApi.pending(),
-    adminApi.labUsage()
-  ])
-  data.value = dashRes.data || {}
-  pendingList.value = pendingRes.data || []
-  usageList.value = usageRes.data?.ranking || []
-  usageTotal.value = usageRes.data?.totalReservations || 0
-  await loadTrend()
+  try {
+    const [dashRes, pendingRes, usageRes] = await Promise.all([
+      adminApi.dashboard(),
+      reservationApi.pending(),
+      adminApi.labUsage()
+    ])
+    data.value = dashRes.data || {}
+    pendingList.value = ensureArray(pendingRes.data, ['list', 'rows'])
+    usageList.value = ensureArray(usageRes.data?.ranking, ['list', 'rows'])
+    usageTotal.value = Number(usageRes.data?.totalReservations) || 0
+    await loadTrend()
+  } catch (error) {
+    pendingList.value = []
+    usageList.value = []
+    trendSeries.value = []
+    trendSummary.value = {}
+    ElMessage.error(error?.message || '加载看板数据失败')
+  }
 })
 </script>
 
