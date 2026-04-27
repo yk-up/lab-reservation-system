@@ -10,6 +10,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
+import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -24,7 +26,9 @@ public class JwtInterceptor implements HandlerInterceptor {
     private final ObjectMapper objectMapper;
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(@NonNull HttpServletRequest request,
+                             @NonNull HttpServletResponse response,
+                             @NonNull Object handler) throws Exception {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             return true;
         }
@@ -43,6 +47,10 @@ public class JwtInterceptor implements HandlerInterceptor {
         String token = header.substring(7);
         try {
             if (jwtUtil.isTokenExpired(token)) {
+                if (isPublicApi) {
+                    // 公开接口允许匿名访问，token 过期时按未登录处理，不阻断请求
+                    return true;
+                }
                 writeUnauthorized(response);
                 return false;
             }
@@ -53,14 +61,20 @@ public class JwtInterceptor implements HandlerInterceptor {
             UserContext.setRole(role);
             return true;
         } catch (JwtException e) {
+            if (isPublicApi) {
+                // 公开接口若携带了非法 token，也不应返回 401
+                return true;
+            }
             writeUnauthorized(response);
             return false;
         }
     }
 
     @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
-                                Object handler, Exception ex) {
+    public void afterCompletion(@NonNull HttpServletRequest request,
+                                @NonNull HttpServletResponse response,
+                                @NonNull Object handler,
+                                @Nullable Exception ex) {
         UserContext.clear();
     }
 

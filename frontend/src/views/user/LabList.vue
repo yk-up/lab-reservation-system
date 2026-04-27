@@ -135,6 +135,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import { labApi } from '@/api'
 import AppEmptyState from '@/components/AppEmptyState.vue'
@@ -188,6 +189,11 @@ onMounted(async () => {
     labs.value = labRes.data || []
     usageList.value = usageRes.data?.ranking || []
     usageTotal.value = usageRes.data?.totalReservations || 0
+  } catch (error) {
+    labs.value = []
+    usageList.value = []
+    usageTotal.value = 0
+    ElMessage.error(error?.message || '加载实验室数据失败，请稍后重试')
   } finally {
     loading.value = false
   }
