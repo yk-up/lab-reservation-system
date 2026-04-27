@@ -44,6 +44,10 @@
         ORDER BY r.create_time ASC
     </select>
 
+    <select id="countPending" resultType="int">
+        SELECT COUNT(*) FROM reservation WHERE status = 0
+    </select>
+
     <select id="findAdminList" resultMap="ReservationMap">
         SELECT r.*, l.name AS lab_name, u.username, u.real_name
         FROM reservation r
@@ -119,7 +123,7 @@
             SUM(CASE WHEN r.status = 2 THEN 1 ELSE 0 END) AS rejected_count
         FROM reservation r
         WHERE r.create_time <![CDATA[>=]]> #{startTime}
-          AND r.create_time <![CDATA[<=]]> #{endTime}
+          AND r.create_time <![CDATA[<]]> #{endTime}
         GROUP BY DATE(r.create_time)
         ORDER BY stat_date ASC
     </select>

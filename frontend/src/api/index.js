@@ -42,6 +42,8 @@ export const adminApi = {
   labUsage: () => request.get('/admin/lab-usage'),
   reservationTrend: (params) => request.get('/admin/reservation-trend', { params }),
   blacklist: () => request.get('/admin/blacklist'),
+  /** @param {{ keyword: string, limit?: number }} params */
+  searchUsers: (params) => request.get('/admin/users/search', { params }),
   addBlacklist: (data) => request.post('/admin/blacklist', data),
   removeBlacklist: (id) => request.delete(`/admin/blacklist/${id}`)
 }

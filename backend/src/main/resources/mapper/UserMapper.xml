@@ -24,6 +24,16 @@
         SELECT * FROM `user` WHERE id = #{id} LIMIT 1
     </select>
 
+    <select id="searchUsersByKeyword" resultType="com.lab.reservation.vo.UserSearchItem">
+        SELECT id, username, real_name
+        FROM `user`
+        WHERE username LIKE CONCAT('%', #{keyword}, '%')
+           OR (real_name IS NOT NULL AND real_name LIKE CONCAT('%', #{keyword}, '%'))
+           OR CAST(id AS CHAR) = #{keyword}
+        ORDER BY id
+        LIMIT #{limit}
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO `user` (username, password, real_name, email, phone, role, status)
         VALUES (#{username}, #{password}, #{realName}, #{email}, #{phone}, #{role}, #{status})

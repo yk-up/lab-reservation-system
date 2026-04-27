@@ -18,6 +18,8 @@ public interface ReservationMapper {
 
     List<Reservation> findPendingList();
 
+    int countPending();
+
     List<Reservation> findAdminList(
             @Param("status") Integer status,
             @Param("keyword") String keyword,

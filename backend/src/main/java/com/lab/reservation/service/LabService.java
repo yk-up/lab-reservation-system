@@ -18,6 +18,8 @@ public class LabService {
     private final LabMapper labMapper;
     private final ReservationMapper reservationMapper;
 
+    private record UsageStats(long totalReservations, List<Map<String, Object>> rows) {}
+
     public List<Lab> listOpenLabs() {
         return labMapper.findAll(1);
     }
@@ -27,6 +29,18 @@ public class LabService {
     }
 
     public List<Map<String, Object>> usageStats() {
+        return computeUsageStats().rows();
+    }
+
+    public Map<String, Object> usageStatsSummary() {
+        UsageStats stats = computeUsageStats();
+        Map<String, Object> result = new HashMap<>();
+        result.put("totalReservations", stats.totalReservations());
+        result.put("ranking", stats.rows());
+        return result;
+    }
+
+    private UsageStats computeUsageStats() {
         List<Map<String, Object>> rows = labMapper.findUsageStats();
         long totalReservations = 0L;
         for (Map<String, Object> row : rows) {
@@ -39,7 +53,7 @@ public class LabService {
             row.put("rank", i + 1);
             row.put("usageRate", Math.round(usageRate * 10) / 10.0);
         }
-        return rows;
+        return new UsageStats(totalReservations, rows);
     }
 
     public Lab getById(Long id) {

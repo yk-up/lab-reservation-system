@@ -67,7 +67,9 @@ CREATE TABLE IF NOT EXISTS `reservation` (
     PRIMARY KEY (`id`),
     KEY `idx_user_id` (`user_id`),
     KEY `idx_lab_time` (`lab_id`, `start_time`, `end_time`),  -- 冲突检测核心索引
+    KEY `idx_lab_status` (`lab_id`, `status`),
     KEY `idx_status` (`status`),
+    KEY `idx_create_time` (`create_time`),
     CONSTRAINT `fk_reservation_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`),
     CONSTRAINT `fk_reservation_lab` FOREIGN KEY (`lab_id`) REFERENCES `lab` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='预约记录表';
@@ -84,6 +86,7 @@ CREATE TABLE IF NOT EXISTS `notice` (
     `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     KEY `idx_user_unread` (`user_id`, `is_read`),
+    KEY `idx_notice_res_type` (`reservation_id`, `type`),
     CONSTRAINT `fk_notice_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内消息通知表';
 

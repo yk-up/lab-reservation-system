@@ -42,10 +42,27 @@
       />
     </div>
 
-    <el-dialog v-model="addDialog" title="加入黑名单" width="420px">
-      <el-form :model="addForm" ref="addFormRef" label-width="80px">
-        <el-form-item label="用户ID" prop="userId" :rules="[{ required: true, message: '请输入用户ID' }]">
-          <el-input-number v-model="addForm.userId" :min="1" style="width: 100%" />
+    <el-dialog v-model="addDialog" title="加入黑名单" width="480px" @open="onAddDialogOpen">
+      <el-form :model="addForm" ref="addFormRef" label-width="88px">
+        <el-form-item label="选择用户" prop="userId" :rules="[{ required: true, message: '请检索并选择用户' }]">
+          <el-select
+            v-model="addForm.userId"
+            filterable
+            remote
+            reserve-keyword
+            clearable
+            placeholder="输入用户名、姓名或用户ID检索"
+            :remote-method="remoteSearchUser"
+            :loading="userSearchLoading"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="u in userOptions"
+              :key="u.id"
+              :label="formatUserOption(u)"
+              :value="u.id"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="封禁原因" prop="reason" :rules="[{ required: true, message: '请填写原因' }]">
           <el-input v-model="addForm.reason" type="textarea" :rows="2" placeholder="封禁原因" />
@@ -68,7 +85,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
@@ -83,8 +100,45 @@ const addDialog = ref(false)
 const saving = ref(false)
 const addFormRef = ref()
 const addForm = reactive({ userId: null, reason: '', expireTime: null })
+const userSearchLoading = ref(false)
+const userOptions = ref([])
 
 const formatDateTime = (t) => t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-'
+
+function formatUserOption(u) {
+  const name = u.realName ? `${u.username}（${u.realName}）` : u.username
+  return `${name} · ID ${u.id}`
+}
+
+function onAddDialogOpen() {
+  addForm.userId = null
+  addForm.reason = ''
+  addForm.expireTime = null
+  userOptions.value = []
+  nextTick(() => addFormRef.value?.clearValidate())
+}
+
+async function remoteSearchUser(query) {
+  const q = (query || '').trim()
+  const selectedId = addForm.userId
+  const keepSelected =
+    selectedId != null ? userOptions.value.find((u) => u.id === selectedId) : null
+  if (!q) {
+    userOptions.value = keepSelected ? [keepSelected] : []
+    return
+  }
+  userSearchLoading.value = true
+  try {
+    const res = await adminApi.searchUsers({ keyword: q, limit: 20 })
+    let list = res.data || []
+    if (keepSelected && !list.some((u) => u.id === keepSelected.id)) {
+      list = [keepSelected, ...list]
+    }
+    userOptions.value = list
+  } finally {
+    userSearchLoading.value = false
+  }
+}
 
 function goBack() {
   router.back()

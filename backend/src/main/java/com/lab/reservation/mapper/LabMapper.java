@@ -9,6 +9,7 @@ import java.util.Map;
 @Mapper
 public interface LabMapper {
     List<Lab> findAll(@Param("status") Integer status);
+    int countAll(@Param("status") Integer status);
     Lab findById(@Param("id") Long id);
     List<Map<String, Object>> findUsageStats();
     int insert(Lab lab);

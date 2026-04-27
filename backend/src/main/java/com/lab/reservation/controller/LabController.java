@@ -10,9 +10,6 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/labs")
@@ -32,15 +29,7 @@ public class LabController {
     @GetMapping("/usage")
     @PublicApi
     public Result<?> usage() {
-        List<Map<String, Object>> rows = labService.usageStats();
-        long totalReservations = 0L;
-        for (Map<String, Object> row : rows) {
-            totalReservations += ((Number) row.getOrDefault("reservationCount", 0L)).longValue();
-        }
-        Map<String, Object> result = new HashMap<>();
-        result.put("totalReservations", totalReservations);
-        result.put("ranking", rows);
-        return Result.success(result);
+        return Result.success(labService.usageStatsSummary());
     }
 
     /** 获取指定实验室某天的空闲时段（日历视图） */

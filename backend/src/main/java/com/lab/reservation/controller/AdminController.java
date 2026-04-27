@@ -4,8 +4,11 @@ import com.lab.reservation.entity.Blacklist;
 import com.lab.reservation.mapper.BlacklistMapper;
 import com.lab.reservation.mapper.LabMapper;
 import com.lab.reservation.mapper.ReservationMapper;
+import com.lab.reservation.mapper.UserMapper;
+import com.lab.reservation.service.LabService;
 import com.lab.reservation.util.UserContext;
 import com.lab.reservation.vo.Result;
+import com.lab.reservation.vo.UserSearchItem;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,18 +25,20 @@ import java.util.Map;
 public class AdminController {
 
     private final BlacklistMapper blacklistMapper;
+    private final UserMapper userMapper;
     private final ReservationMapper reservationMapper;
     private final LabMapper labMapper;
+    private final LabService labService;
 
     /** 数据看板 */
     @GetMapping("/dashboard")
     public Result<?> dashboard() {
         if (!UserContext.isAdmin()) return Result.forbidden();
         Map<String, Object> data = new HashMap<>();
-        data.put("totalLabs", labMapper.findAll(null).size());
-        data.put("openLabs", labMapper.findAll(1).size());
-        data.put("pendingCount", reservationMapper.findPendingList().size());
-        data.put("blacklistCount", blacklistMapper.findAll().size());
+        data.put("totalLabs", labMapper.countAll(null));
+        data.put("openLabs", labMapper.countAll(1));
+        data.put("pendingCount", reservationMapper.countPending());
+        data.put("blacklistCount", blacklistMapper.countAll());
         return Result.success(data);
     }
 
@@ -41,24 +46,7 @@ public class AdminController {
     @GetMapping("/lab-usage")
     public Result<?> labUsage() {
         if (!UserContext.isAdmin()) return Result.forbidden();
-        List<Map<String, Object>> rows = labMapper.findUsageStats();
-        long totalReservations = 0L;
-        for (Map<String, Object> row : rows) {
-            totalReservations += ((Number) row.getOrDefault("reservationCount", 0L)).longValue();
-        }
-
-        for (int i = 0; i < rows.size(); i++) {
-            Map<String, Object> row = rows.get(i);
-            long count = ((Number) row.getOrDefault("reservationCount", 0L)).longValue();
-            double usageRate = totalReservations == 0 ? 0D : (count * 100.0 / totalReservations);
-            row.put("rank", i + 1);
-            row.put("usageRate", Math.round(usageRate * 10) / 10.0);
-        }
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("totalReservations", totalReservations);
-        result.put("ranking", rows);
-        return Result.success(result);
+        return Result.success(labService.usageStatsSummary());
     }
 
     /** 预约趋势统计 */
@@ -70,7 +58,7 @@ public class AdminController {
         LocalDate endDate = LocalDate.now();
         LocalDate startDate = endDate.minusDays(safeDays - 1L);
         LocalDateTime startTime = startDate.atStartOfDay();
-        LocalDateTime endTime = endDate.plusDays(1L).atStartOfDay().minusNanos(1);
+        LocalDateTime endTime = endDate.plusDays(1L).atStartOfDay();
 
         List<Map<String, Object>> rows = reservationMapper.findDailyTrend(startTime, endTime);
         Map<String, Map<String, Object>> trendMap = new HashMap<>();
@@ -128,6 +116,20 @@ public class AdminController {
         return Result.success(result);
     }
 
+    /** 按用户名/姓名/精确 ID 检索用户（加入黑名单等场景） */
+    @GetMapping("/users/search")
+    public Result<List<UserSearchItem>> searchUsers(
+            @RequestParam String keyword,
+            @RequestParam(required = false) Integer limit) {
+        if (!UserContext.isAdmin()) return Result.forbidden();
+        String k = keyword == null ? "" : keyword.trim();
+        if (k.isEmpty()) {
+            return Result.success(List.of());
+        }
+        int safeLimit = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
+        return Result.success(userMapper.searchUsersByKeyword(k, safeLimit));
+    }
+
     /** 黑名单列表 */
     @GetMapping("/blacklist")
     public Result<?> blacklist() {
@@ -139,6 +141,16 @@ public class AdminController {
     @PostMapping("/blacklist")
     public Result<?> addBlacklist(@RequestBody Blacklist blacklist) {
         if (!UserContext.isAdmin()) return Result.forbidden();
+        Long userId = blacklist.getUserId();
+        if (userId == null) {
+            return Result.fail("请指定用户ID");
+        }
+        if (userMapper.findById(userId) == null) {
+            return Result.fail("用户不存在");
+        }
+        if (blacklistMapper.findActiveByUserId(userId) != null) {
+            return Result.fail("该用户已在有效黑名单中");
+        }
         blacklist.setOperatorId(UserContext.getUserId());
         blacklistMapper.insert(blacklist);
         return Result.success("已加入黑名单");

@@ -35,6 +35,10 @@
         ORDER BY b.create_time DESC
     </select>
 
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM blacklist
+    </select>
+
     <delete id="deleteById">
         DELETE FROM blacklist WHERE id = #{id}
     </delete>

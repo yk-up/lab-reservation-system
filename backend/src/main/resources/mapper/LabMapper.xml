@@ -23,6 +23,13 @@
         ORDER BY id ASC
     </select>
 
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM lab
+        <where>
+            <if test="status != null">AND status = #{status}</if>
+        </where>
+    </select>
+
     <select id="findById" resultMap="LabMap">
         SELECT * FROM lab WHERE id = #{id} LIMIT 1
     </select>
@@ -32,7 +39,7 @@
             l.id AS labId,
             l.name AS labName,
             l.location AS location,
-            COUNT(r.id) AS reservationCount
+            COALESCE(COUNT(r.id), 0) AS reservationCount
         FROM lab l
         LEFT JOIN reservation r
             ON r.lab_id = l.id
