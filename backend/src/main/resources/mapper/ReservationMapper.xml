@@ -32,7 +32,25 @@
     </select>
 
     <select id="findByUserId" resultMap="ReservationMap">
-        SELECT * FROM reservation WHERE user_id = #{userId} ORDER BY create_time DESC
+        SELECT
+            r.id,
+            r.user_id,
+            r.lab_id,
+            r.title,
+            r.start_time,
+            r.end_time,
+            r.attendees,
+            r.remark,
+            r.status,
+            r.reject_reason,
+            r.cancel_time,
+            r.create_time,
+            r.update_time,
+            l.name AS lab_name
+        FROM reservation r
+        LEFT JOIN lab l ON l.id = r.lab_id
+        WHERE r.user_id = #{userId}
+        ORDER BY r.create_time DESC
     </select>
 
     <select id="findPendingList" resultMap="ReservationMap">

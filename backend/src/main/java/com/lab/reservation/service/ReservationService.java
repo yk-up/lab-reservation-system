@@ -10,13 +10,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 public class ReservationService {
 
     private final ReservationMapper reservationMapper;
+    private final LabMapper labMapper;
     private final NoticeMapper noticeMapper;
     private final BlacklistMapper blacklistMapper;
 
@@ -58,7 +62,34 @@ public class ReservationService {
     }
 
     public List<Reservation> listMyReservations(Long userId) {
-        return reservationMapper.findByUserId(userId);
+        List<Reservation> list = reservationMapper.findByUserId(userId);
+        if (list.isEmpty()) {
+            return list;
+        }
+        List<Long> labIds = list.stream()
+                .map(Reservation::getLabId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (labIds.isEmpty()) {
+            return list;
+        }
+        List<Lab> labs = labMapper.findByIds(labIds);
+        Map<Long, String> nameByLabId = new LinkedHashMap<>();
+        for (Lab lab : labs) {
+            if (lab.getId() != null && lab.getName() != null) {
+                nameByLabId.put(lab.getId(), lab.getName());
+            }
+        }
+        for (Reservation r : list) {
+            if (r.getLabName() == null || r.getLabName().isBlank()) {
+                String n = nameByLabId.get(r.getLabId());
+                if (n != null) {
+                    r.setLabName(n);
+                }
+            }
+        }
+        return list;
     }
 
     public List<Reservation> listAdminReservations(Integer status, String keyword, LocalDateTime startTime, LocalDateTime endTime) {

@@ -11,6 +11,8 @@ public interface LabMapper {
     List<Lab> findAll(@Param("status") Integer status);
     int countAll(@Param("status") Integer status);
     Lab findById(@Param("id") Long id);
+
+    List<Lab> findByIds(@Param("ids") List<Long> ids);
     List<Map<String, Object>> findUsageStats();
     int insert(Lab lab);
     int update(Lab lab);

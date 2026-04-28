@@ -17,31 +17,12 @@
         <div class="section-head">
           <div>
             <h3 class="section-title">实验室使用率排行</h3>
-            <p class="section-subtitle">按预约次数统计，直观查看热门实验室</p>
+            <p class="section-subtitle">按预约次数统计；下方图表为各实验室使用率（占全部预约的百分比）</p>
           </div>
           <el-tag type="primary" effect="dark">总预约 {{ usageTotal }}</el-tag>
         </div>
 
-        <div v-if="usageList.length" class="usage-chart">
-          <div v-for="item in usageList.slice(0, 6)" :key="item.labId" class="usage-row">
-            <div class="usage-label">
-              <span class="rank-badge">#{{ item.rank }}</span>
-              <div>
-                <div class="lab-name">{{ item.labName }}</div>
-                <div class="lab-location">{{ item.location || '暂无位置信息' }}</div>
-              </div>
-            </div>
-            <div class="usage-bar-wrap">
-              <div class="usage-bar-bg">
-                <div class="usage-bar" :style="{ width: `${barPercent(item)}%` }"></div>
-              </div>
-              <div class="usage-meta">
-                <span>{{ item.reservationCount }} 次</span>
-                <span>{{ item.usageRate }}%</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <div v-if="usageList.length" ref="usageChartRef" class="echart-box" />
         <el-empty v-else description="暂无实验室使用统计" />
       </div>
 
@@ -65,7 +46,7 @@
       <div class="section-head">
         <div>
           <h3 class="section-title">预约趋势统计分析</h3>
-          <p class="section-subtitle">按申请日期观察近一段时间的预约总量、通过量和拒绝量变化</p>
+          <p class="section-subtitle">按申请日期观察预约变化；下图按日（或每 7 天）堆叠展示待审核、通过、拒绝数量</p>
         </div>
         <div class="trend-toolbar">
           <el-radio-group v-model="trendDisplayMode" size="small">
@@ -109,69 +90,7 @@
           当日共有 <strong>{{ trendSummary.peakCount ?? 0 }}</strong> 条申请。
         </div>
 
-        <div class="trend-chart-shell">
-          <div class="trend-legend">
-            <span><i class="legend-dot pending"></i>待审核</span>
-            <span><i class="legend-dot approved"></i>通过</span>
-            <span><i class="legend-dot rejected"></i>拒绝</span>
-          </div>
-          <div class="trend-axis-title">预约数</div>
-          <div class="trend-chart-body">
-            <div class="trend-y-axis">
-              <span
-                v-for="tick in trendTicks"
-                :key="`tick-${tick}`"
-                class="trend-y-tick"
-                :style="{ bottom: `${trendTickBottom(tick)}%` }"
-              >
-                {{ tick }}
-              </span>
-            </div>
-
-            <div class="trend-chart-wrap">
-              <div class="trend-grid-lines">
-                <span
-                  v-for="tick in trendTicks"
-                  :key="`grid-${tick}`"
-                  class="trend-grid-line"
-                  :style="{ bottom: `${trendTickBottom(tick)}%` }"
-                ></span>
-              </div>
-
-              <div class="trend-chart">
-                <div v-for="item in trendItems" :key="item.date" class="trend-group">
-                  <div class="trend-bar-stack">
-                    <div class="trend-total-label" :style="{ bottom: trendTotalOffset(item) }">
-                      {{ item.totalCount }}
-                    </div>
-                    <span
-                      v-if="item.pendingCount > 0"
-                      class="trend-bar pending"
-                      :style="{ height: trendSegmentHeight(item.pendingCount) }"
-                    >
-                      <em class="trend-segment-label">{{ item.pendingCount }}</em>
-                    </span>
-                    <span
-                      v-if="item.approvedCount > 0"
-                      class="trend-bar approved"
-                      :style="{ height: trendSegmentHeight(item.approvedCount) }"
-                    >
-                      <em class="trend-segment-label">{{ item.approvedCount }}</em>
-                    </span>
-                    <span
-                      v-if="item.rejectedCount > 0"
-                      class="trend-bar rejected"
-                      :style="{ height: trendSegmentHeight(item.rejectedCount) }"
-                    >
-                      <em class="trend-segment-label">{{ item.rejectedCount }}</em>
-                    </span>
-                  </div>
-                  <div class="trend-date">{{ item.label }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <div ref="trendChartRef" class="echart-box echart-box--trend" />
       </template>
       <el-empty v-else description="暂无趋势统计数据" />
     </div>
@@ -216,9 +135,10 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
+import * as echarts from 'echarts'
 import { adminApi, reservationApi } from '@/api'
 
 const data = ref({})
@@ -233,6 +153,10 @@ const rejectDialog = ref(false)
 const rejectReason = ref('')
 const currentRow = ref(null)
 const auditing = ref(false)
+const usageChartRef = ref(null)
+const trendChartRef = ref(null)
+let usageChart = null
+let trendChart = null
 
 const statCards = [
   { key: 'totalLabs', label: '实验室总数', icon: 'OfficeBuilding', bg: '#ecf5ff', color: '#409eff' },
@@ -241,7 +165,6 @@ const statCards = [
   { key: 'blacklistCount', label: '黑名单人数', icon: 'UserFilled', bg: '#fef0f0', color: '#f56c6c' }
 ]
 
-const maxUsageCount = computed(() => Math.max(...usageList.value.map(item => Number(item.reservationCount) || 0), 1))
 const trendItems = computed(() => {
   const normalized = trendSeries.value.map(item => {
     const totalCount = Number(item.totalCount) || 0
@@ -276,9 +199,6 @@ const trendItems = computed(() => {
 
   return grouped
 })
-const maxTrendCount = computed(() => Math.max(...trendItems.value.map(item => item.totalCount), 1))
-const trendAxisMax = computed(() => maxTrendCount.value + 1)
-const trendTicks = computed(() => Array.from({ length: trendAxisMax.value + 1 }, (_, index) => index).reverse())
 
 const formatDateTime = t => (t ? dayjs(t).format('MM-DD HH:mm') : '-')
 const formatTime = t => (t ? dayjs(t).format('HH:mm') : '-')
@@ -295,23 +215,132 @@ function ensureArray(value, fallbackKeys = []) {
   return []
 }
 
-function barPercent(item) {
-  return Math.max(12, Math.round(((Number(item.reservationCount) || 0) / maxUsageCount.value) * 100))
+function shortLabLabel(row) {
+  const name = row.labName || `实验室#${row.labId}`
+  return name.length > 16 ? `${name.slice(0, 16)}…` : name
 }
 
-function trendSegmentHeight(value) {
-  const num = Number(value) || 0
-  if (num <= 0) return '0%'
-  return `${(num / trendAxisMax.value) * 100}%`
+function syncUsageChart() {
+  const el = usageChartRef.value
+  if (!el || !usageList.value.length) {
+    usageChart?.dispose()
+    usageChart = null
+    return
+  }
+  if (!usageChart) usageChart = echarts.init(el)
+  const rows = usageList.value
+  const categories = rows.map(r => `#${r.rank} ${shortLabLabel(r)}`)
+  const rates = rows.map(r => Number(r.usageRate) || 0)
+  const counts = rows.map(r => Number(r.reservationCount) || 0)
+  usageChart.setOption(
+    {
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        formatter(params) {
+          const i = params[0].dataIndex
+          const r = rows[i]
+          const loc = r.location ? `<br/>${r.location}` : ''
+          return `${r.labName || '-'}${loc}<br/>预约 <strong>${counts[i]}</strong> 次 · 使用率 <strong>${rates[i]}%</strong>`
+        }
+      },
+      grid: { left: 4, right: 20, top: 8, bottom: 4, containLabel: true },
+      xAxis: {
+        type: 'value',
+        max: 100,
+        axisLabel: { formatter: '{value}%' },
+        splitLine: { lineStyle: { type: 'dashed', color: '#e2e8f0' } }
+      },
+      yAxis: {
+        type: 'category',
+        data: categories,
+        inverse: true,
+        axisTick: { show: false },
+        axisLine: { lineStyle: { color: '#cbd5e1' } }
+      },
+      series: [
+        {
+          name: '使用率',
+          type: 'bar',
+          data: rates,
+          barMaxWidth: 26,
+          itemStyle: {
+            borderRadius: [0, 6, 6, 0],
+            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+              { offset: 0, color: '#409eff' },
+              { offset: 1, color: '#67c23a' }
+            ])
+          }
+        }
+      ]
+    },
+    true
+  )
 }
 
-function trendTotalOffset(item) {
-  const total = Number(item.totalCount) || 0
-  return `calc(${(total / trendAxisMax.value) * 100}% + 6px)`
+function syncTrendChart() {
+  const el = trendChartRef.value
+  const items = trendItems.value
+  if (!el || !items.length) {
+    trendChart?.dispose()
+    trendChart = null
+    return
+  }
+  if (!trendChart) trendChart = echarts.init(el)
+  const labels = items.map(i => i.label)
+  const pending = items.map(i => i.pendingCount)
+  const approved = items.map(i => i.approvedCount)
+  const rejected = items.map(i => i.rejectedCount)
+  const needZoom = labels.length > 12
+  trendChart.setOption(
+    {
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      legend: {
+        data: ['待审核', '通过', '拒绝'],
+        top: 0,
+        textStyle: { color: '#64748b' }
+      },
+      grid: {
+        left: 44,
+        right: 16,
+        top: 40,
+        bottom: needZoom ? 52 : 28,
+        containLabel: false
+      },
+      xAxis: {
+        type: 'category',
+        data: labels,
+        axisLabel: {
+          rotate: labels.length > 8 ? 32 : 0,
+          interval: 0,
+          color: '#64748b',
+          hideOverlap: true
+        },
+        axisLine: { lineStyle: { color: '#e2e8f0' } }
+      },
+      yAxis: {
+        type: 'value',
+        name: '预约数',
+        nameTextStyle: { color: '#64748b', padding: [0, 0, 0, 8] },
+        splitLine: { lineStyle: { type: 'dashed', color: '#e2e8f0' } },
+        axisLine: { show: false }
+      },
+      dataZoom: needZoom
+        ? [{ type: 'slider', xAxisIndex: 0, height: 18, bottom: 6, start: 0, end: 100 }]
+        : [],
+      series: [
+        { name: '待审核', type: 'bar', stack: 'day', data: pending, itemStyle: { color: '#409eff' } },
+        { name: '通过', type: 'bar', stack: 'day', data: approved, itemStyle: { color: '#67c23a' } },
+        { name: '拒绝', type: 'bar', stack: 'day', data: rejected, itemStyle: { color: '#f56c6c' } }
+      ]
+    },
+    true
+  )
 }
 
-function trendTickBottom(tick) {
-  return (tick / trendAxisMax.value) * 100
+function resizeCharts() {
+  usageChart?.resize()
+  trendChart?.resize()
 }
 
 function openReject(row) {
@@ -351,7 +380,13 @@ async function loadTrend() {
   const res = await adminApi.reservationTrend({ days: Number(trendRange.value) })
   trendSeries.value = ensureArray(res.data?.series)
   trendSummary.value = res.data?.summary || {}
+  await nextTick()
+  syncTrendChart()
+  resizeCharts()
 }
+
+watch(usageList, () => nextTick(() => syncUsageChart()), { deep: true })
+watch(trendItems, () => nextTick(() => syncTrendChart()), { deep: true })
 
 onMounted(async () => {
   try {
@@ -372,6 +407,18 @@ onMounted(async () => {
     trendSummary.value = {}
     ElMessage.error(error?.message || '加载看板数据失败')
   }
+  await nextTick()
+  syncUsageChart()
+  syncTrendChart()
+  window.addEventListener('resize', resizeCharts)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', resizeCharts)
+  usageChart?.dispose()
+  trendChart?.dispose()
+  usageChart = null
+  trendChart = null
 })
 </script>
 
@@ -444,71 +491,12 @@ onMounted(async () => {
   color: #94a3b8;
   margin-top: 0.25rem;
 }
-.usage-chart {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
+.echart-box {
+  width: 100%;
+  height: 320px;
 }
-.usage-row {
-  display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 1rem;
-  align-items: center;
-}
-.usage-label {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-width: 0;
-}
-.rank-badge {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #409eff, #79bbff);
-  color: white;
-  font-size: 0.8rem;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-.lab-name {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #303133;
-}
-.lab-location {
-  font-size: 0.75rem;
-  color: #909399;
-  margin-top: 0.2rem;
-}
-.usage-bar-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-.usage-bar-bg {
-  flex: 1;
-  height: 0.7rem;
-  background: #edf2f7;
-  border-radius: 999px;
-  overflow: hidden;
-}
-.usage-bar {
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #409eff, #67c23a);
-}
-.usage-meta {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  min-width: 90px;
-  justify-content: space-between;
-  color: #606266;
-  font-size: 0.8rem;
+.echart-box--trend {
+  height: 380px;
 }
 .trend-summary {
   display: grid;
@@ -540,165 +528,6 @@ onMounted(async () => {
   color: #475569;
   line-height: 1.75;
 }
-.trend-legend {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  font-size: 0.8rem;
-  color: #64748b;
-  margin-bottom: 0.9rem;
-}
-.legend-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  margin-right: 6px;
-}
-.legend-dot.pending { background: #409eff; }
-.legend-dot.approved { background: #67c23a; }
-.legend-dot.rejected { background: #f56c6c; }
-.trend-chart-shell {
-  margin-top: 0.25rem;
-  padding: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-.trend-axis-title {
-  margin-bottom: 0.7rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #475569;
-  letter-spacing: 0.02em;
-}
-.trend-chart-body {
-  display: grid;
-  grid-template-columns: 56px 1fr;
-  gap: 0.75rem;
-  align-items: stretch;
-}
-.trend-y-axis {
-  position: relative;
-  height: 260px;
-}
-.trend-y-tick {
-  position: absolute;
-  right: 0;
-  transform: translateY(50%);
-  font-size: 0.8rem;
-  color: #94a3b8;
-}
-.trend-chart-wrap {
-  position: relative;
-  height: 260px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  border-left: 1px solid #e8edf5;
-  border-bottom: 1px solid #e8edf5;
-}
-.trend-grid-lines {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.trend-grid-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  border-top: 1px solid #e8edf5;
-}
-.trend-chart {
-  position: relative;
-  z-index: 1;
-  min-width: max(100%, 760px);
-  height: 100%;
-  display: flex;
-  justify-content: space-around;
-  align-items: stretch;
-  gap: 1.4rem;
-  padding: 0 0.8rem;
-}
-.trend-group {
-  flex: 1;
-  min-width: 76px;
-  max-width: 104px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-}
-.trend-total-label {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #334155;
-  text-shadow: none;
-  white-space: nowrap;
-  pointer-events: none;
-}
-.trend-bar-stack {
-  position: relative;
-  width: 78%;
-  height: 220px;
-  display: flex;
-  flex-direction: column-reverse;
-  justify-content: flex-start;
-  align-items: stretch;
-  overflow: visible;
-  filter: drop-shadow(0 8px 16px rgba(15, 23, 42, 0.08));
-}
-.trend-bar {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 0;
-  transition: height 0.2s ease;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.08);
-}
-.trend-bar + .trend-bar {
-  margin-bottom: -3px;
-}
-.trend-bar::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: -6px;
-  height: 12px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0));
-  opacity: 0.55;
-  pointer-events: none;
-}
-.trend-bar.pending {
-  background: linear-gradient(180deg, #7cbcff 0%, #4d9fff 55%, #409eff 100%);
-  border-radius: 0.5rem 0.5rem 0 0;
-}
-.trend-bar.approved {
-  background: linear-gradient(180deg, #98dd7e 0%, #75cc4d 55%, #67c23a 100%);
-}
-.trend-bar.rejected {
-  background: linear-gradient(180deg, #f9aaaa 0%, #f67979 55%, #f56c6c 100%);
-  border-radius: 0 0 0.5rem 0.5rem;
-}
-.trend-segment-label {
-  font-style: normal;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: white;
-  text-shadow: 0 2px 4px rgba(15, 23, 42, 0.3);
-}
-.trend-date {
-  margin-top: 0.9rem;
-  text-align: center;
-  font-size: 0.85rem;
-  color: #64748b;
-}
 @media (max-width: 1100px) {
   .usage-section {
     grid-template-columns: 1fr;
@@ -708,9 +537,6 @@ onMounted(async () => {
   }
 }
 @media (max-width: 768px) {
-  .usage-row {
-    grid-template-columns: 1fr;
-  }
   .section-head {
     flex-direction: column;
     align-items: stretch;
@@ -721,8 +547,11 @@ onMounted(async () => {
   .trend-summary {
     grid-template-columns: 1fr;
   }
-  .trend-chart {
-    min-width: 640px;
+  .echart-box {
+    height: 280px;
+  }
+  .echart-box--trend {
+    height: 320px;
   }
 }
 </style>
