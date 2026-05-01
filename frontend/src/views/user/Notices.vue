@@ -16,11 +16,11 @@
       <AppEmptyState
         type="notice"
         title="暂无消息通知"
-        description="当前还没有新的通知消息，预约审核结果和提醒会第一时间显示在这里。"
-        secondary-action-text="返回上一页"
-        action-text="查看我的预约"
+        :description="emptyDescription"
+        :secondary-action-text="emptySecondaryText"
+        :action-text="emptyPrimaryText"
         @secondary-action="goBack"
-        @action="goToReservations"
+        @action="goEmptyPrimary"
       />
     </div>
 
@@ -82,15 +82,31 @@
 
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 import { noticeApi } from '@/api'
 import { useUserStore } from '@/store/user'
 import AppEmptyState from '@/components/AppEmptyState.vue'
 
+const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+
+/** 管理端 LABRES-07：复用同一页面，由路由名区分行为与跳转 */
+const isAdminNotices = computed(() => route.name === 'AdminNotices')
+
+const emptyDescription = computed(() =>
+  isAdminNotices.value
+    ? '当前账号暂无站内消息。若您同时作为用户预约过实验室，审核与提醒会推送至此处。'
+    : '当前还没有新的通知消息，预约审核结果和提醒会第一时间显示在这里。'
+)
+const emptySecondaryText = computed(() =>
+  isAdminNotices.value ? '返回工作台' : '返回上一页'
+)
+const emptyPrimaryText = computed(() =>
+  isAdminNotices.value ? '前往预约审核' : '查看我的预约'
+)
 const loading = ref(true)
 const notices = ref([])
 const currentPage = ref(1)
@@ -111,12 +127,23 @@ const pagedNotices = computed(() => {
 })
 
 function noticeTargetPath(n) {
-  if (n.type === 1 || n.type === 2) return '/my-reservations'
-  if (n.type === 3) return '/my-reservations'
+  if (isAdminNotices.value) {
+    if (n.type === 1 || n.type === 2 || n.type === 3) return '/admin/audit'
+    if (n.type === 4) return '/admin/announcements'
+    return '/admin/notices'
+  }
+  if (n.type === 1 || n.type === 2 || n.type === 3) return '/my-reservations'
   return '/notices'
 }
 
 function noticeTargetLabel(n) {
+  if (isAdminNotices.value) {
+    if (n.type === 1) return '预约审核'
+    if (n.type === 2) return '预约审核'
+    if (n.type === 3) return '预约审核'
+    if (n.type === 4) return '公告中心'
+    return ''
+  }
   if (n.type === 1) return '查看我的预约'
   if (n.type === 2) return '查看拒绝详情'
   if (n.type === 3) return '查看预约安排'
@@ -124,10 +151,18 @@ function noticeTargetLabel(n) {
 }
 
 function goBack() {
+  if (isAdminNotices.value) {
+    router.push('/admin/dashboard')
+    return
+  }
   router.back()
 }
 
-function goToReservations() {
+function goEmptyPrimary() {
+  if (isAdminNotices.value) {
+    router.push('/admin/audit')
+    return
+  }
   router.push('/my-reservations')
 }
 
@@ -159,7 +194,8 @@ async function markRead(n) {
 async function handleNoticeClick(n) {
   await markRead(n)
   const path = noticeTargetPath(n)
-  if (path && router.currentRoute.value.path !== path) {
+  const cur = router.currentRoute.value.path
+  if (path && cur !== path) {
     router.push(path)
   }
 }

@@ -18,7 +18,15 @@
       >
         <el-menu-item v-for="item in menuItems" :key="item.path" :index="item.path">
           <el-icon><component :is="item.icon" /></el-icon>
-          <template #title>{{ item.label }}</template>
+          <template #title>
+            <span class="menu-item-title">{{ item.label }}</span>
+            <el-badge
+              v-if="item.badgeUnread && userStore.unreadCount > 0"
+              class="menu-unread-badge"
+              :max="99"
+              :value="userStore.unreadCount"
+            />
+          </template>
         </el-menu-item>
       </el-menu>
 
@@ -67,6 +75,12 @@ const sidebarMenuKey = ref(0)
 const menuItems = [
   { path: '/admin/dashboard', label: '数据看板', icon: 'DataAnalysis' },
   { path: '/admin/announcements', label: '公告中心', icon: 'Bell' },
+  {
+    path: '/admin/notices',
+    label: '消息通知',
+    icon: 'ChatDotRound',
+    badgeUnread: true
+  },
   { path: '/admin/audit', label: '预约审核', icon: 'DocumentChecked' },
   { path: '/admin/labs', label: '实验室管理', icon: 'OfficeBuilding' },
   { path: '/admin/blacklist', label: '黑名单管理', icon: 'UserFilled' }
@@ -183,6 +197,17 @@ function handleLogout() {
   flex: 1;
   padding: 1.5rem;
   overflow-y: auto;
+}
+
+.menu-item-title {
+  vertical-align: middle;
+}
+.menu-unread-badge {
+  margin-left: 0.35rem;
+  vertical-align: middle;
+}
+.menu-unread-badge :deep(.el-badge__content) {
+  border: none;
 }
 
 @media (max-width: 768px) {
