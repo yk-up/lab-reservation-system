@@ -60,6 +60,12 @@ const routes = [
         meta: { title: '数据看板' }
       },
       {
+        path: 'announcements',
+        name: 'AdminAnnouncementCenter',
+        component: () => import('@/views/admin/AnnouncementCenter.vue'),
+        meta: { title: '公告中心' }
+      },
+      {
         path: 'audit',
         name: 'Audit',
         component: () => import('@/views/admin/Audit.vue'),

@@ -39,6 +39,10 @@ export const noticeApi = {
 // ========== 管理员 ==========
 export const adminApi = {
   dashboard: () => request.get('/admin/dashboard'),
+  /** @param {{ limit?: number }} [params] */
+  dashboardAnnouncements: (params) => request.get('/admin/dashboard-announcements', { params }),
+  /** @param {{ limit?: number }} [params] */
+  announcements: (params) => request.get('/admin/announcements', { params }),
   labUsage: () => request.get('/admin/lab-usage'),
   reservationTrend: (params) => request.get('/admin/reservation-trend', { params }),
   blacklist: () => request.get('/admin/blacklist'),

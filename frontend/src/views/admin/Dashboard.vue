@@ -12,6 +12,35 @@
       </div>
     </div>
 
+    <div class="card announcements-card mt-3">
+      <div class="section-head">
+        <div>
+          <h3 class="section-title">系统公告</h3>
+          <p class="section-subtitle">最新发布的系统公告摘要；完整列表请前往公告中心</p>
+        </div>
+        <el-button type="primary" link @click="goAnnouncementCenter">
+          查看更多
+          <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+        </el-button>
+      </div>
+
+      <div v-if="announcementsLoading" class="announcements-skel">
+        <el-skeleton :rows="3" animated />
+      </div>
+      <template v-else-if="dashboardAnnouncements.length">
+        <ul class="announcement-items">
+          <li v-for="item in dashboardAnnouncements" :key="item.id" class="announcement-item">
+            <div class="announcement-item-main">
+              <span class="announcement-item-title">{{ item.title }}</span>
+              <span class="announcement-item-time">{{ formatPublishTime(item.createTime) }}</span>
+            </div>
+            <p class="announcement-item-summary">{{ announcementSummary(item.content) }}</p>
+          </li>
+        </ul>
+      </template>
+      <el-empty v-else description="暂无系统公告" :image-size="64" />
+    </div>
+
     <div class="usage-section mt-3">
       <div class="card usage-card">
         <div class="section-head">
@@ -136,10 +165,14 @@
 
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 import * as echarts from 'echarts'
 import { adminApi, reservationApi } from '@/api'
+
+const router = useRouter()
 
 const data = ref({})
 const pendingList = ref([])
@@ -157,6 +190,9 @@ const usageChartRef = ref(null)
 const trendChartRef = ref(null)
 let usageChart = null
 let trendChart = null
+
+const dashboardAnnouncements = ref([])
+const announcementsLoading = ref(true)
 
 const statCards = [
   { key: 'totalLabs', label: '实验室总数', icon: 'OfficeBuilding', bg: '#ecf5ff', color: '#409eff' },
@@ -201,10 +237,21 @@ const trendItems = computed(() => {
 })
 
 const formatDateTime = t => (t ? dayjs(t).format('MM-DD HH:mm') : '-')
+const formatPublishTime = t => (t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-')
 const formatTime = t => (t ? dayjs(t).format('HH:mm') : '-')
 const formatMetric = value => {
   const num = Number(value) || 0
   return Number.isInteger(num) ? String(num) : num.toFixed(1)
+}
+
+function announcementSummary(content, maxLen = 120) {
+  const t = String(content || '').replace(/\s+/g, ' ').trim()
+  if (t.length <= maxLen) return t || '—'
+  return `${t.slice(0, maxLen)}…`
+}
+
+function goAnnouncementCenter() {
+  router.push({ name: 'AdminAnnouncementCenter' })
 }
 
 function ensureArray(value, fallbackKeys = []) {
@@ -390,22 +437,27 @@ watch(trendItems, () => nextTick(() => syncTrendChart()), { deep: true })
 
 onMounted(async () => {
   try {
-    const [dashRes, pendingRes, usageRes] = await Promise.all([
+    const [dashRes, pendingRes, usageRes, annRes] = await Promise.all([
       adminApi.dashboard(),
       reservationApi.pending(),
-      adminApi.labUsage()
+      adminApi.labUsage(),
+      adminApi.dashboardAnnouncements({ limit: 5 }).catch(() => ({ data: [] }))
     ])
     data.value = dashRes.data || {}
     pendingList.value = ensureArray(pendingRes.data, ['list', 'rows'])
     usageList.value = ensureArray(usageRes.data?.ranking, ['list', 'rows'])
     usageTotal.value = Number(usageRes.data?.totalReservations) || 0
+    dashboardAnnouncements.value = Array.isArray(annRes.data) ? annRes.data : []
     await loadTrend()
   } catch (error) {
     pendingList.value = []
     usageList.value = []
     trendSeries.value = []
     trendSummary.value = {}
+    dashboardAnnouncements.value = []
     ElMessage.error(error?.message || '加载看板数据失败')
+  } finally {
+    announcementsLoading.value = false
   }
   await nextTick()
   syncUsageChart()
@@ -423,6 +475,54 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.announcements-card {
+  padding: 1.25rem;
+}
+.announcements-skel {
+  padding: 0.25rem 0;
+}
+.announcement-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.announcement-item {
+  padding: 0.9rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.announcement-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.announcement-item:first-child {
+  padding-top: 0;
+}
+.announcement-item-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.announcement-item-title {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: #1e293b;
+}
+.announcement-item-time {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+.announcement-item-summary {
+  margin: 0.45rem 0 0;
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.55;
+}
+
 .stat-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));

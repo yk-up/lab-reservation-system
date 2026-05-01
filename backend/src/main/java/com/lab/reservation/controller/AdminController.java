@@ -1,7 +1,9 @@
 package com.lab.reservation.controller;
 
 import com.lab.reservation.entity.Blacklist;
+import com.lab.reservation.entity.Notice;
 import com.lab.reservation.mapper.BlacklistMapper;
+import com.lab.reservation.mapper.NoticeMapper;
 import com.lab.reservation.mapper.LabMapper;
 import com.lab.reservation.mapper.ReservationMapper;
 import com.lab.reservation.mapper.UserMapper;
@@ -14,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -24,11 +28,14 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AdminController {
 
+    private static final int NOTICE_TYPE_SYSTEM = 4;
+
     private final BlacklistMapper blacklistMapper;
     private final UserMapper userMapper;
     private final ReservationMapper reservationMapper;
     private final LabMapper labMapper;
     private final LabService labService;
+    private final NoticeMapper noticeMapper;
 
     /** 数据看板 */
     @GetMapping("/dashboard")
@@ -40,6 +47,52 @@ public class AdminController {
         data.put("pendingCount", reservationMapper.countPending());
         data.put("blacklistCount", blacklistMapper.countAll());
         return Result.success(data);
+    }
+
+    /** 工作台首页公告条（系统通知 type=4，多用户群发按标题+正文去重） */
+    @GetMapping("/dashboard-announcements")
+    public Result<List<Notice>> dashboardAnnouncements(
+            @RequestParam(defaultValue = "5") Integer limit) {
+        if (!UserContext.isAdmin()) return Result.forbidden();
+        int safeLimit = Math.min(Math.max(limit, 1), 20);
+        int fetchRows = Math.min(400, Math.max(safeLimit * 40, 80));
+        List<Notice> deduped = dedupeAnnouncementRows(
+                noticeMapper.findByTypeOrderByCreateTimeDesc(NOTICE_TYPE_SYSTEM, fetchRows));
+        if (deduped.size() > safeLimit) {
+            deduped = deduped.subList(0, safeLimit);
+        }
+        return Result.success(deduped);
+    }
+
+    /** 公告中心列表（与 dashboard 数据源一致，条数可调） */
+    @GetMapping("/announcements")
+    public Result<List<Notice>> announcements(
+            @RequestParam(defaultValue = "50") Integer limit) {
+        if (!UserContext.isAdmin()) return Result.forbidden();
+        int safeLimit = Math.min(Math.max(limit, 1), 200);
+        int fetchRows = Math.min(800, Math.max(safeLimit * 40, 80));
+        List<Notice> deduped = dedupeAnnouncementRows(
+                noticeMapper.findByTypeOrderByCreateTimeDesc(NOTICE_TYPE_SYSTEM, fetchRows));
+        if (deduped.size() > safeLimit) {
+            deduped = deduped.subList(0, safeLimit);
+        }
+        return Result.success(deduped);
+    }
+
+    /** 群发公告库内去重（保留最新一条）。 */
+    private static List<Notice> dedupeAnnouncementRows(List<Notice> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        Map<String, Notice> byContent = new LinkedHashMap<>();
+        for (Notice n : rows) {
+            String title = n.getTitle() == null ? "" : n.getTitle();
+            String content = n.getContent() == null ? "" : n.getContent();
+            byContent.putIfAbsent(title + "\0" + content, n);
+        }
+        List<Notice> sorted = new ArrayList<>(byContent.values());
+        sorted.sort(Comparator.comparing(Notice::getCreateTime, Comparator.nullsLast(Comparator.reverseOrder())));
+        return sorted;
     }
 
     /** 实验室使用率统计 */

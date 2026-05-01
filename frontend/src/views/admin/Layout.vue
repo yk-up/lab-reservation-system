@@ -69,7 +69,7 @@ const menuItems = [
 ]
 
 const currentTitle = computed(() => {
-  return menuItems.find(m => m.path === route.path)?.label || '管理后台'
+  return menuItems.find(m => m.path === route.path)?.label || route.meta?.title || '管理后台'
 })
 
 function goHome() {
