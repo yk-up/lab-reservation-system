@@ -79,6 +79,20 @@ public class AdminController {
         return Result.success(deduped);
     }
 
+    /** 公告详情（仅系统公告 type=4，供公告中心独立页使用） */
+    @GetMapping("/announcements/{id}")
+    public Result<Notice> announcementDetail(@PathVariable Long id) {
+        if (!UserContext.isAdmin()) return Result.forbidden();
+        if (id == null || id <= 0) {
+            return Result.fail(400, "无效的公告 ID");
+        }
+        Notice n = noticeMapper.findById(id);
+        if (n == null || n.getType() == null || n.getType() != NOTICE_TYPE_SYSTEM) {
+            return Result.fail(404, "公告不存在或不是系统公告");
+        }
+        return Result.success(n);
+    }
+
     /** 群发公告库内去重（保留最新一条）。 */
     private static List<Notice> dedupeAnnouncementRows(List<Notice> rows) {
         if (rows == null || rows.isEmpty()) {

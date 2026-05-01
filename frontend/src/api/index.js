@@ -43,6 +43,8 @@ export const adminApi = {
   dashboardAnnouncements: (params) => request.get('/admin/dashboard-announcements', { params }),
   /** @param {{ limit?: number }} [params] */
   announcements: (params) => request.get('/admin/announcements', { params }),
+  announcementDetail: (id) =>
+    request.get(`/admin/announcements/${id}`, { skipErrorToast: true }),
   labUsage: () => request.get('/admin/lab-usage'),
   reservationTrend: (params) => request.get('/admin/reservation-trend', { params }),
   blacklist: () => request.get('/admin/blacklist'),

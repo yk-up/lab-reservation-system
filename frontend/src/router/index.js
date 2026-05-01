@@ -66,6 +66,12 @@ const routes = [
         meta: { title: '公告中心' }
       },
       {
+        path: 'announcements/:id',
+        name: 'AdminAnnouncementDetail',
+        component: () => import('@/views/admin/AnnouncementDetail.vue'),
+        meta: { title: '公告详情', activeMenu: '/admin/announcements' }
+      },
+      {
         path: 'audit',
         name: 'Audit',
         component: () => import('@/views/admin/Audit.vue'),

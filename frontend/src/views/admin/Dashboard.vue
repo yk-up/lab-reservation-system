@@ -29,7 +29,15 @@
       </div>
       <template v-else-if="dashboardAnnouncements.length">
         <ul class="announcement-items">
-          <li v-for="item in dashboardAnnouncements" :key="item.id" class="announcement-item">
+          <li
+            v-for="item in dashboardAnnouncements"
+            :key="item.id"
+            class="announcement-item announcement-item--click"
+            role="link"
+            tabindex="0"
+            @click="openAnnouncementDetail(item)"
+            @keydown.enter="openAnnouncementDetail(item)"
+          >
             <div class="announcement-item-main">
               <span class="announcement-item-title">{{ item.title }}</span>
               <span class="announcement-item-time">{{ formatPublishTime(item.createTime) }}</span>
@@ -252,6 +260,14 @@ function announcementSummary(content, maxLen = 120) {
 
 function goAnnouncementCenter() {
   router.push({ name: 'AdminAnnouncementCenter' })
+}
+
+function openAnnouncementDetail(item) {
+  if (!item?.id) return
+  router.push({
+    name: 'AdminAnnouncementDetail',
+    params: { id: String(item.id) }
+  })
 }
 
 function ensureArray(value, fallbackKeys = []) {
@@ -492,6 +508,17 @@ onBeforeUnmount(() => {
 .announcement-item {
   padding: 0.9rem 0;
   border-bottom: 1px solid #f1f5f9;
+}
+.announcement-item--click {
+  cursor: pointer;
+  border-radius: 0.35rem;
+  margin: 0 -0.35rem;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+  outline: none;
+}
+.announcement-item--click:hover {
+  background: #f8fafc;
 }
 .announcement-item:last-child {
   border-bottom: none;

@@ -8,7 +8,8 @@
       </div>
 
       <el-menu
-        :default-active="route.path"
+        :key="sidebarMenuKey"
+        :default-active="activeMenuIndex"
         router
         background-color="#1e293b"
         text-color="#94a3b8"
@@ -50,7 +51,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { School, House, Expand, Fold } from '@element-plus/icons-vue'
@@ -60,16 +61,27 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const sidebarCollapsed = ref(false)
+/** el-menu default-active 在部分版本上对 prop 变更不生效，侧边栏切换时强制同步 */
+const sidebarMenuKey = ref(0)
 
 const menuItems = [
   { path: '/admin/dashboard', label: '数据看板', icon: 'DataAnalysis' },
+  { path: '/admin/announcements', label: '公告中心', icon: 'Bell' },
   { path: '/admin/audit', label: '预约审核', icon: 'DocumentChecked' },
   { path: '/admin/labs', label: '实验室管理', icon: 'OfficeBuilding' },
   { path: '/admin/blacklist', label: '黑名单管理', icon: 'UserFilled' }
 ]
 
+const activeMenuIndex = computed(
+  () => route.meta.activeMenu || route.path
+)
+
 const currentTitle = computed(() => {
   return menuItems.find(m => m.path === route.path)?.label || route.meta?.title || '管理后台'
+})
+
+watch(activeMenuIndex, () => {
+  sidebarMenuKey.value += 1
 })
 
 function goHome() {

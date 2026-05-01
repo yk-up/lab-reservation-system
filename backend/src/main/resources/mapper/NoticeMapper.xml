@@ -27,6 +27,10 @@
         SELECT * FROM notice WHERE type = #{type} ORDER BY create_time DESC LIMIT #{limit}
     </select>
 
+    <select id="findById" resultMap="NoticeMap">
+        SELECT * FROM notice WHERE id = #{id}
+    </select>
+
     <select id="countUnread" resultType="int">
         SELECT COUNT(*) FROM notice WHERE user_id = #{userId} AND is_read = 0
     </select>

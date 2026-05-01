@@ -24,6 +24,7 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   response => {
     const res = response.data
+    const silent = !!response.config?.skipErrorToast
     if (res.code === 200) {
       return res
     }
@@ -31,19 +32,22 @@ request.interceptors.response.use(
       const userStore = useUserStore()
       userStore.logout()
       router.push('/login')
-      ElMessage.error('登录已过期，请重新登录')
+      if (!silent) ElMessage.error('登录已过期，请重新登录')
       return Promise.reject(new Error(res.message))
     }
-    ElMessage.error(res.message || '请求失败')
+    if (!silent) ElMessage.error(res.message || '请求失败')
     return Promise.reject(new Error(res.message))
   },
   error => {
+    const silent = !!error.config?.skipErrorToast
     if (error.response?.status === 401) {
       const userStore = useUserStore()
       userStore.logout()
       router.push('/login')
     }
-    ElMessage.error(error.response?.data?.message || '网络请求失败')
+    if (!silent) {
+      ElMessage.error(error.response?.data?.message || '网络请求失败')
+    }
     return Promise.reject(error)
   }
 )
