@@ -1,6 +1,72 @@
 <template>
-  <div>
-    <div class="stat-cards">
+  <div class="dashboard-page">
+    <section class="card hero-card">
+      <div>
+        <div class="hero-badge">Admin Workbench</div>
+        <h2 class="hero-title">{{ greeting }}，{{ displayName }}</h2>
+        <p class="hero-desc">欢迎进入实验室预约管理后台，首页聚合账号信息、日期信息、快捷入口与核心管理数据。</p>
+        <div class="hero-tags">
+          <el-tag type="primary" effect="dark">管理员工作台</el-tag>
+          <el-tag type="success" effect="plain">{{ currentDateText }}</el-tag>
+          <el-tag type="warning" effect="plain">{{ currentWeekText }}</el-tag>
+        </div>
+      </div>
+      <div class="hero-side">
+        <div class="info-card">
+          <div class="info-label">登录账号</div>
+          <div class="info-value">{{ userStore.userInfo?.username || '-' }}</div>
+          <div class="info-sub">姓名：{{ displayName }}</div>
+        </div>
+        <div class="info-card">
+          <div class="info-label">当前时间</div>
+          <div class="info-value">{{ currentTimeText }}</div>
+          <div class="info-sub">{{ currentDateText }} · {{ currentWeekText }}</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="portal-grid mt-3">
+      <div class="card">
+        <div class="section-head">
+          <div>
+            <h3 class="section-title">快捷应用</h3>
+            <p class="section-subtitle">快速进入后台核心功能</p>
+          </div>
+        </div>
+        <div class="quick-grid">
+          <button v-for="item in quickActions" :key="item.path" class="quick-item" @click="goTo(item.path)">
+            <span class="quick-icon" :style="{ background: item.bg, color: item.color }">
+              <el-icon><component :is="item.icon" /></el-icon>
+            </span>
+            <span class="quick-text">
+              <strong>{{ item.label }}</strong>
+              <small>{{ item.desc }}</small>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <div>
+            <h3 class="section-title">工作台概览</h3>
+            <p class="section-subtitle">今日优先处理事项</p>
+          </div>
+        </div>
+        <div class="summary-list">
+          <div class="summary-item"><span>当前角色</span><strong>管理员</strong></div>
+          <div class="summary-item"><span>待审核预约</span><strong class="warning">{{ data.pendingCount ?? 0 }}</strong></div>
+          <div class="summary-item"><span>开放实验室</span><strong class="success">{{ data.openLabs ?? 0 }}</strong></div>
+          <div class="summary-item"><span>黑名单人数</span><strong class="danger">{{ data.blacklistCount ?? 0 }}</strong></div>
+        </div>
+        <div class="summary-actions">
+          <el-button type="primary" @click="goTo('/admin/audit')">处理审核</el-button>
+          <el-button @click="goTo('/admin/labs')">查看实验室</el-button>
+        </div>
+      </div>
+    </section>
+
+    <div class="stat-cards mt-3">
       <div class="stat-card" v-for="card in statCards" :key="card.label">
         <div class="stat-icon" :style="{ background: card.bg }">
           <el-icon size="24" :color="card.color"><component :is="card.icon" /></el-icon>
@@ -12,54 +78,36 @@
       </div>
     </div>
 
-    <div class="card announcements-card mt-3">
-      <div class="section-head">
-        <div>
-          <h3 class="section-title">系统公告</h3>
-          <p class="section-subtitle">最新发布的系统公告摘要；完整列表请前往公告中心</p>
-        </div>
-        <el-button type="primary" link @click="goAnnouncementCenter">
-          查看更多
-          <el-icon class="el-icon--right"><ArrowRight /></el-icon>
-        </el-button>
-      </div>
-
-      <div v-if="announcementsLoading" class="announcements-skel">
-        <el-skeleton :rows="3" animated />
-      </div>
-      <template v-else-if="dashboardAnnouncements.length">
-        <ul class="announcement-items">
-          <li
-            v-for="item in dashboardAnnouncements"
-            :key="item.id"
-            class="announcement-item announcement-item--click"
-            role="link"
-            tabindex="0"
-            @click="openAnnouncementDetail(item)"
-            @keydown.enter="openAnnouncementDetail(item)"
-          >
-            <div class="announcement-item-main">
-              <span class="announcement-item-title">{{ item.title }}</span>
-              <span class="announcement-item-time">{{ formatPublishTime(item.createTime) }}</span>
-            </div>
-            <p class="announcement-item-summary">{{ announcementSummary(item.content) }}</p>
-          </li>
-        </ul>
-      </template>
-      <el-empty v-else description="暂无系统公告" :image-size="64" />
-    </div>
-
     <div class="usage-section mt-3">
       <div class="card usage-card">
         <div class="section-head">
           <div>
             <h3 class="section-title">实验室使用率排行</h3>
-            <p class="section-subtitle">按预约次数统计；下方图表为各实验室使用率（占全部预约的百分比）</p>
+            <p class="section-subtitle">按预约次数统计，直观查看热门实验室</p>
           </div>
           <el-tag type="primary" effect="dark">总预约 {{ usageTotal }}</el-tag>
         </div>
 
-        <div v-if="usageList.length" ref="usageChartRef" class="echart-box" />
+        <div v-if="usageList.length" class="usage-chart">
+          <div v-for="item in usageList.slice(0, 6)" :key="item.labId" class="usage-row">
+            <div class="usage-label">
+              <span class="rank-badge">#{{ item.rank }}</span>
+              <div>
+                <div class="lab-name">{{ item.labName }}</div>
+                <div class="lab-location">{{ item.location || '暂无位置信息' }}</div>
+              </div>
+            </div>
+            <div class="usage-bar-wrap">
+              <div class="usage-bar-bg">
+                <div class="usage-bar" :style="{ width: `${barPercent(item)}%` }"></div>
+              </div>
+              <div class="usage-meta">
+                <span>{{ item.reservationCount }} 次</span>
+                <span>{{ item.usageRate }}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
         <el-empty v-else description="暂无实验室使用统计" />
       </div>
 
@@ -83,7 +131,7 @@
       <div class="section-head">
         <div>
           <h3 class="section-title">预约趋势统计分析</h3>
-          <p class="section-subtitle">按申请日期观察预约变化；下图按日（或每 7 天）堆叠展示待审核、通过、拒绝数量</p>
+          <p class="section-subtitle">按申请日期观察近一段时间的预约总量、通过量和拒绝量变化</p>
         </div>
         <div class="trend-toolbar">
           <el-radio-group v-model="trendDisplayMode" size="small">
@@ -127,7 +175,69 @@
           当日共有 <strong>{{ trendSummary.peakCount ?? 0 }}</strong> 条申请。
         </div>
 
-        <div ref="trendChartRef" class="echart-box echart-box--trend" />
+        <div class="trend-chart-shell">
+          <div class="trend-legend">
+            <span><i class="legend-dot pending"></i>待审核</span>
+            <span><i class="legend-dot approved"></i>通过</span>
+            <span><i class="legend-dot rejected"></i>拒绝</span>
+          </div>
+          <div class="trend-axis-title">预约数</div>
+          <div class="trend-chart-body">
+            <div class="trend-y-axis">
+              <span
+                v-for="tick in trendTicks"
+                :key="`tick-${tick}`"
+                class="trend-y-tick"
+                :style="{ bottom: `${trendTickBottom(tick)}%` }"
+              >
+                {{ tick }}
+              </span>
+            </div>
+
+            <div class="trend-chart-wrap">
+              <div class="trend-grid-lines">
+                <span
+                  v-for="tick in trendTicks"
+                  :key="`grid-${tick}`"
+                  class="trend-grid-line"
+                  :style="{ bottom: `${trendTickBottom(tick)}%` }"
+                ></span>
+              </div>
+
+              <div class="trend-chart">
+                <div v-for="item in trendItems" :key="item.date" class="trend-group">
+                  <div class="trend-bar-stack">
+                    <div class="trend-total-label" :style="{ bottom: trendTotalOffset(item) }">
+                      {{ item.totalCount }}
+                    </div>
+                    <span
+                      v-if="item.pendingCount > 0"
+                      class="trend-bar pending"
+                      :style="{ height: trendSegmentHeight(item.pendingCount) }"
+                    >
+                      <em class="trend-segment-label">{{ item.pendingCount }}</em>
+                    </span>
+                    <span
+                      v-if="item.approvedCount > 0"
+                      class="trend-bar approved"
+                      :style="{ height: trendSegmentHeight(item.approvedCount) }"
+                    >
+                      <em class="trend-segment-label">{{ item.approvedCount }}</em>
+                    </span>
+                    <span
+                      v-if="item.rejectedCount > 0"
+                      class="trend-bar rejected"
+                      :style="{ height: trendSegmentHeight(item.rejectedCount) }"
+                    >
+                      <em class="trend-segment-label">{{ item.rejectedCount }}</em>
+                    </span>
+                  </div>
+                  <div class="trend-date">{{ item.label }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </template>
       <el-empty v-else description="暂无趋势统计数据" />
     </div>
@@ -172,16 +282,15 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { ArrowRight } from '@element-plus/icons-vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
-import * as echarts from 'echarts'
 import { adminApi, reservationApi } from '@/api'
+import { useUserStore } from '@/store/user'
 
 const router = useRouter()
-
+const userStore = useUserStore()
 const data = ref({})
 const pendingList = ref([])
 const usageList = ref([])
@@ -194,13 +303,8 @@ const rejectDialog = ref(false)
 const rejectReason = ref('')
 const currentRow = ref(null)
 const auditing = ref(false)
-const usageChartRef = ref(null)
-const trendChartRef = ref(null)
-let usageChart = null
-let trendChart = null
-
-const dashboardAnnouncements = ref([])
-const announcementsLoading = ref(true)
+const now = ref(dayjs())
+let clockTimer = null
 
 const statCards = [
   { key: 'totalLabs', label: '实验室总数', icon: 'OfficeBuilding', bg: '#ecf5ff', color: '#409eff' },
@@ -209,6 +313,27 @@ const statCards = [
   { key: 'blacklistCount', label: '黑名单人数', icon: 'UserFilled', bg: '#fef0f0', color: '#f56c6c' }
 ]
 
+const quickActions = [
+  { path: '/admin/announcements', label: '公告中心', desc: '查看并管理系统公告', icon: 'Bell', bg: '#e8f3ff', color: '#409eff' },
+  { path: '/admin/audit', label: '预约审核', desc: '处理审核申请', icon: 'DocumentChecked', bg: '#edf9ee', color: '#67c23a' },
+  { path: '/admin/labs', label: '实验室管理', desc: '维护实验室信息', icon: 'OfficeBuilding', bg: '#fff5e8', color: '#e6a23c' },
+  { path: '/admin/blacklist', label: '黑名单管理', desc: '处理限制账号', icon: 'UserFilled', bg: '#feeeee', color: '#f56c6c' }
+]
+
+const displayName = computed(() => userStore.realName || userStore.userInfo?.username || '管理员')
+const greeting = computed(() => {
+  const hour = now.value.hour()
+  if (hour < 6) return '凌晨好'
+  if (hour < 11) return '上午好'
+  if (hour < 14) return '中午好'
+  if (hour < 18) return '下午好'
+  return '晚上好'
+})
+const currentDateText = computed(() => now.value.format('YYYY年MM月DD日'))
+const currentTimeText = computed(() => now.value.format('HH:mm:ss'))
+const currentWeekText = computed(() => ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][now.value.day()])
+
+const maxUsageCount = computed(() => Math.max(...usageList.value.map(item => Number(item.reservationCount) || 0), 1))
 const trendItems = computed(() => {
   const normalized = trendSeries.value.map(item => {
     const totalCount = Number(item.totalCount) || 0
@@ -243,31 +368,15 @@ const trendItems = computed(() => {
 
   return grouped
 })
+const maxTrendCount = computed(() => Math.max(...trendItems.value.map(item => item.totalCount), 1))
+const trendAxisMax = computed(() => maxTrendCount.value + 1)
+const trendTicks = computed(() => Array.from({ length: trendAxisMax.value + 1 }, (_, index) => index).reverse())
 
 const formatDateTime = t => (t ? dayjs(t).format('MM-DD HH:mm') : '-')
-const formatPublishTime = t => (t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-')
 const formatTime = t => (t ? dayjs(t).format('HH:mm') : '-')
 const formatMetric = value => {
   const num = Number(value) || 0
   return Number.isInteger(num) ? String(num) : num.toFixed(1)
-}
-
-function announcementSummary(content, maxLen = 120) {
-  const t = String(content || '').replace(/\s+/g, ' ').trim()
-  if (t.length <= maxLen) return t || '—'
-  return `${t.slice(0, maxLen)}…`
-}
-
-function goAnnouncementCenter() {
-  router.push({ name: 'AdminAnnouncementCenter' })
-}
-
-function openAnnouncementDetail(item) {
-  if (!item?.id) return
-  router.push({
-    name: 'AdminAnnouncementDetail',
-    params: { id: String(item.id) }
-  })
 }
 
 function ensureArray(value, fallbackKeys = []) {
@@ -278,132 +387,27 @@ function ensureArray(value, fallbackKeys = []) {
   return []
 }
 
-function shortLabLabel(row) {
-  const name = row.labName || `实验室#${row.labId}`
-  return name.length > 16 ? `${name.slice(0, 16)}…` : name
+function goTo(path) {
+  router.push(path)
 }
 
-function syncUsageChart() {
-  const el = usageChartRef.value
-  if (!el || !usageList.value.length) {
-    usageChart?.dispose()
-    usageChart = null
-    return
-  }
-  if (!usageChart) usageChart = echarts.init(el)
-  const rows = usageList.value
-  const categories = rows.map(r => `#${r.rank} ${shortLabLabel(r)}`)
-  const rates = rows.map(r => Number(r.usageRate) || 0)
-  const counts = rows.map(r => Number(r.reservationCount) || 0)
-  usageChart.setOption(
-    {
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: { type: 'shadow' },
-        formatter(params) {
-          const i = params[0].dataIndex
-          const r = rows[i]
-          const loc = r.location ? `<br/>${r.location}` : ''
-          return `${r.labName || '-'}${loc}<br/>预约 <strong>${counts[i]}</strong> 次 · 使用率 <strong>${rates[i]}%</strong>`
-        }
-      },
-      grid: { left: 4, right: 20, top: 8, bottom: 4, containLabel: true },
-      xAxis: {
-        type: 'value',
-        max: 100,
-        axisLabel: { formatter: '{value}%' },
-        splitLine: { lineStyle: { type: 'dashed', color: '#e2e8f0' } }
-      },
-      yAxis: {
-        type: 'category',
-        data: categories,
-        inverse: true,
-        axisTick: { show: false },
-        axisLine: { lineStyle: { color: '#cbd5e1' } }
-      },
-      series: [
-        {
-          name: '使用率',
-          type: 'bar',
-          data: rates,
-          barMaxWidth: 26,
-          itemStyle: {
-            borderRadius: [0, 6, 6, 0],
-            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-              { offset: 0, color: '#409eff' },
-              { offset: 1, color: '#67c23a' }
-            ])
-          }
-        }
-      ]
-    },
-    true
-  )
+function barPercent(item) {
+  return Math.max(12, Math.round(((Number(item.reservationCount) || 0) / maxUsageCount.value) * 100))
 }
 
-function syncTrendChart() {
-  const el = trendChartRef.value
-  const items = trendItems.value
-  if (!el || !items.length) {
-    trendChart?.dispose()
-    trendChart = null
-    return
-  }
-  if (!trendChart) trendChart = echarts.init(el)
-  const labels = items.map(i => i.label)
-  const pending = items.map(i => i.pendingCount)
-  const approved = items.map(i => i.approvedCount)
-  const rejected = items.map(i => i.rejectedCount)
-  const needZoom = labels.length > 12
-  trendChart.setOption(
-    {
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-      legend: {
-        data: ['待审核', '通过', '拒绝'],
-        top: 0,
-        textStyle: { color: '#64748b' }
-      },
-      grid: {
-        left: 44,
-        right: 16,
-        top: 40,
-        bottom: needZoom ? 52 : 28,
-        containLabel: false
-      },
-      xAxis: {
-        type: 'category',
-        data: labels,
-        axisLabel: {
-          rotate: labels.length > 8 ? 32 : 0,
-          interval: 0,
-          color: '#64748b',
-          hideOverlap: true
-        },
-        axisLine: { lineStyle: { color: '#e2e8f0' } }
-      },
-      yAxis: {
-        type: 'value',
-        name: '预约数',
-        nameTextStyle: { color: '#64748b', padding: [0, 0, 0, 8] },
-        splitLine: { lineStyle: { type: 'dashed', color: '#e2e8f0' } },
-        axisLine: { show: false }
-      },
-      dataZoom: needZoom
-        ? [{ type: 'slider', xAxisIndex: 0, height: 18, bottom: 6, start: 0, end: 100 }]
-        : [],
-      series: [
-        { name: '待审核', type: 'bar', stack: 'day', data: pending, itemStyle: { color: '#409eff' } },
-        { name: '通过', type: 'bar', stack: 'day', data: approved, itemStyle: { color: '#67c23a' } },
-        { name: '拒绝', type: 'bar', stack: 'day', data: rejected, itemStyle: { color: '#f56c6c' } }
-      ]
-    },
-    true
-  )
+function trendSegmentHeight(value) {
+  const num = Number(value) || 0
+  if (num <= 0) return '0%'
+  return `${(num / trendAxisMax.value) * 100}%`
 }
 
-function resizeCharts() {
-  usageChart?.resize()
-  trendChart?.resize()
+function trendTotalOffset(item) {
+  const total = Number(item.totalCount) || 0
+  return `calc(${(total / trendAxisMax.value) * 100}% + 6px)`
+}
+
+function trendTickBottom(tick) {
+  return (tick / trendAxisMax.value) * 100
 }
 
 function openReject(row) {
@@ -443,113 +447,167 @@ async function loadTrend() {
   const res = await adminApi.reservationTrend({ days: Number(trendRange.value) })
   trendSeries.value = ensureArray(res.data?.series)
   trendSummary.value = res.data?.summary || {}
-  await nextTick()
-  syncTrendChart()
-  resizeCharts()
 }
 
-watch(usageList, () => nextTick(() => syncUsageChart()), { deep: true })
-watch(trendItems, () => nextTick(() => syncTrendChart()), { deep: true })
-
 onMounted(async () => {
+  clockTimer = window.setInterval(() => {
+    now.value = dayjs()
+  }, 1000)
   try {
-    const [dashRes, pendingRes, usageRes, annRes] = await Promise.all([
+    const [dashRes, pendingRes, usageRes] = await Promise.all([
       adminApi.dashboard(),
       reservationApi.pending(),
-      adminApi.labUsage(),
-      adminApi.dashboardAnnouncements({ limit: 5 }).catch(() => ({ data: [] }))
+      adminApi.labUsage()
     ])
     data.value = dashRes.data || {}
     pendingList.value = ensureArray(pendingRes.data, ['list', 'rows'])
     usageList.value = ensureArray(usageRes.data?.ranking, ['list', 'rows'])
     usageTotal.value = Number(usageRes.data?.totalReservations) || 0
-    dashboardAnnouncements.value = Array.isArray(annRes.data) ? annRes.data : []
     await loadTrend()
   } catch (error) {
     pendingList.value = []
     usageList.value = []
     trendSeries.value = []
     trendSummary.value = {}
-    dashboardAnnouncements.value = []
     ElMessage.error(error?.message || '加载看板数据失败')
-  } finally {
-    announcementsLoading.value = false
   }
-  await nextTick()
-  syncUsageChart()
-  syncTrendChart()
-  window.addEventListener('resize', resizeCharts)
 })
-
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', resizeCharts)
-  usageChart?.dispose()
-  trendChart?.dispose()
-  usageChart = null
-  trendChart = null
+  if (clockTimer) {
+    window.clearInterval(clockTimer)
+    clockTimer = null
+  }
 })
 </script>
 
 <style scoped>
-.announcements-card {
-  padding: 1.25rem;
-}
-.announcements-skel {
-  padding: 0.25rem 0;
-}
-.announcement-items {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.dashboard-page {
   display: flex;
   flex-direction: column;
-  gap: 0;
 }
-.announcement-item {
-  padding: 0.9rem 0;
-  border-bottom: 1px solid #f1f5f9;
+.hero-card {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #1d4ed8, #2563eb 40%, #38bdf8);
+  color: #fff;
 }
-.announcement-item--click {
-  cursor: pointer;
-  border-radius: 0.35rem;
-  margin: 0 -0.35rem;
-  padding-left: 0.35rem;
-  padding-right: 0.35rem;
-  outline: none;
+.hero-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 12px;
 }
-.announcement-item--click:hover {
-  background: #f8fafc;
+.hero-title {
+  margin-top: 0.9rem;
+  font-size: 2rem;
+  font-weight: 700;
 }
-.announcement-item:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
+.hero-desc {
+  margin-top: 0.8rem;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.7;
 }
-.announcement-item:first-child {
-  padding-top: 0;
-}
-.announcement-item-main {
+.hero-tags {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 0.75rem;
+  margin-top: 1rem;
 }
-.announcement-item-title {
-  font-weight: 600;
-  font-size: 0.92rem;
-  color: #1e293b;
+.hero-side {
+  display: grid;
+  gap: 1rem;
 }
-.announcement-item-time {
-  font-size: 0.75rem;
-  color: #94a3b8;
+.info-card {
+  padding: 1rem 1.1rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.info-label {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.78);
+}
+.info-value {
+  margin-top: 0.35rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+.info-sub {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.88);
+}
+.portal-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 1rem;
+}
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+.quick-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  background: #fff;
+  padding: 1rem;
+  display: flex;
+  gap: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+}
+.quick-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
-.announcement-item-summary {
-  margin: 0.45rem 0 0;
-  font-size: 0.82rem;
-  color: #64748b;
-  line-height: 1.55;
+.quick-text {
+  display: flex;
+  flex-direction: column;
 }
-
+.quick-text strong {
+  color: #0f172a;
+}
+.quick-text small {
+  margin-top: 0.2rem;
+  color: #64748b;
+}
+.summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 0.9rem;
+  background: #f8fafc;
+}
+.summary-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+.warning {
+  color: #d97706;
+}
+.success {
+  color: #059669;
+}
+.danger {
+  color: #dc2626;
+}
 .stat-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -618,12 +676,71 @@ onBeforeUnmount(() => {
   color: #94a3b8;
   margin-top: 0.25rem;
 }
-.echart-box {
-  width: 100%;
-  height: 320px;
+.usage-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
 }
-.echart-box--trend {
-  height: 380px;
+.usage-row {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 1rem;
+  align-items: center;
+}
+.usage-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.rank-badge {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #409eff, #79bbff);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.lab-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #303133;
+}
+.lab-location {
+  font-size: 0.75rem;
+  color: #909399;
+  margin-top: 0.2rem;
+}
+.usage-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.usage-bar-bg {
+  flex: 1;
+  height: 0.7rem;
+  background: #edf2f7;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.usage-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #409eff, #67c23a);
+}
+.usage-meta {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-width: 90px;
+  justify-content: space-between;
+  color: #606266;
+  font-size: 0.8rem;
 }
 .trend-summary {
   display: grid;
@@ -655,6 +772,165 @@ onBeforeUnmount(() => {
   color: #475569;
   line-height: 1.75;
 }
+.trend-legend {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-bottom: 0.9rem;
+}
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-right: 6px;
+}
+.legend-dot.pending { background: #409eff; }
+.legend-dot.approved { background: #67c23a; }
+.legend-dot.rejected { background: #f56c6c; }
+.trend-chart-shell {
+  margin-top: 0.25rem;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.trend-axis-title {
+  margin-bottom: 0.7rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #475569;
+  letter-spacing: 0.02em;
+}
+.trend-chart-body {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+.trend-y-axis {
+  position: relative;
+  height: 260px;
+}
+.trend-y-tick {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+.trend-chart-wrap {
+  position: relative;
+  height: 260px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-left: 1px solid #e8edf5;
+  border-bottom: 1px solid #e8edf5;
+}
+.trend-grid-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.trend-grid-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid #e8edf5;
+}
+.trend-chart {
+  position: relative;
+  z-index: 1;
+  min-width: max(100%, 760px);
+  height: 100%;
+  display: flex;
+  justify-content: space-around;
+  align-items: stretch;
+  gap: 1.4rem;
+  padding: 0 0.8rem;
+}
+.trend-group {
+  flex: 1;
+  min-width: 76px;
+  max-width: 104px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+.trend-total-label {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #334155;
+  text-shadow: none;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.trend-bar-stack {
+  position: relative;
+  width: 78%;
+  height: 220px;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-start;
+  align-items: stretch;
+  overflow: visible;
+  filter: drop-shadow(0 8px 16px rgba(15, 23, 42, 0.08));
+}
+.trend-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  transition: height 0.2s ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+}
+.trend-bar + .trend-bar {
+  margin-bottom: -3px;
+}
+.trend-bar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -6px;
+  height: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0));
+  opacity: 0.55;
+  pointer-events: none;
+}
+.trend-bar.pending {
+  background: linear-gradient(180deg, #7cbcff 0%, #4d9fff 55%, #409eff 100%);
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+.trend-bar.approved {
+  background: linear-gradient(180deg, #98dd7e 0%, #75cc4d 55%, #67c23a 100%);
+}
+.trend-bar.rejected {
+  background: linear-gradient(180deg, #f9aaaa 0%, #f67979 55%, #f56c6c 100%);
+  border-radius: 0 0 0.5rem 0.5rem;
+}
+.trend-segment-label {
+  font-style: normal;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 2px 4px rgba(15, 23, 42, 0.3);
+}
+.trend-date {
+  margin-top: 0.9rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #64748b;
+}
 @media (max-width: 1100px) {
   .usage-section {
     grid-template-columns: 1fr;
@@ -664,6 +940,9 @@ onBeforeUnmount(() => {
   }
 }
 @media (max-width: 768px) {
+  .usage-row {
+    grid-template-columns: 1fr;
+  }
   .section-head {
     flex-direction: column;
     align-items: stretch;
@@ -674,11 +953,8 @@ onBeforeUnmount(() => {
   .trend-summary {
     grid-template-columns: 1fr;
   }
-  .echart-box {
-    height: 280px;
-  }
-  .echart-box--trend {
-    height: 320px;
+  .trend-chart {
+    min-width: 640px;
   }
 }
 </style>
