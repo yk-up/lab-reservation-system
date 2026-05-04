@@ -91,6 +91,79 @@
       </div>
     </div>
 
+    <!-- 公告展示区 -->
+    <div class="card announcement-card mt-3">
+      <div class="section-head">
+        <div>
+          <h3 class="section-title">
+            <el-icon style="vertical-align: middle; margin-right: 0.5rem;"><Bell /></el-icon>
+            系统公告
+          </h3>
+          <p class="section-subtitle">最新发布的系统公告和通知信息</p>
+        </div>
+        <el-button type="primary" link @click="goTo('/admin/announcements')">
+          查看更多
+          <el-icon style="margin-left: 0.25rem;"><ArrowRight /></el-icon>
+        </el-button>
+      </div>
+
+      <div v-if="announcements.length" class="announcement-list">
+        <div 
+          v-for="item in announcements" 
+          :key="item.id" 
+          class="announcement-item"
+          @click="goToAnnouncement(item.id)"
+        >
+          <div class="announcement-header">
+            <div class="announcement-title-row">
+              <el-tag 
+                v-if="item.priority === 'high'" 
+                type="danger" 
+                size="small" 
+                effect="dark"
+                class="announcement-priority"
+              >
+                重要
+              </el-tag>
+              <el-tag 
+                v-else-if="item.priority === 'medium'" 
+                type="warning" 
+                size="small" 
+                effect="plain"
+                class="announcement-priority"
+              >
+                通知
+              </el-tag>
+              <h4 class="announcement-title">{{ item.title }}</h4>
+              <el-tag 
+                v-if="isNew(item.publishTime)" 
+                type="danger" 
+                size="small" 
+                effect="dark"
+                round
+                class="new-badge"
+              >
+                NEW
+              </el-tag>
+            </div>
+            <span class="announcement-time">{{ formatAnnouncementTime(item.publishTime) }}</span>
+          </div>
+          <p class="announcement-summary">{{ item.summary || item.content?.substring(0, 80) + '...' }}</p>
+          <div class="announcement-footer">
+            <span class="announcement-author">
+              <el-icon><User /></el-icon>
+              {{ item.publisherName || '系统管理员' }}
+            </span>
+            <span class="announcement-views" v-if="item.viewCount">
+              <el-icon><View /></el-icon>
+              {{ item.viewCount }} 次浏览
+            </span>
+          </div>
+        </div>
+      </div>
+      <el-empty v-else description="暂无系统公告" :image-size="120" />
+    </div>
+
     <div class="usage-section mt-3">
       <div class="card usage-card">
         <div class="section-head">
@@ -298,6 +371,7 @@
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
+import { Grid, Monitor, Bell, ArrowRight, User, View } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { adminApi, reservationApi } from '@/api'
 import { useUserStore } from '@/store/user'
@@ -317,6 +391,7 @@ const rejectReason = ref('')
 const currentRow = ref(null)
 const auditing = ref(false)
 const now = ref(dayjs())
+const announcements = ref([])
 let clockTimer = null
 
 const statCards = [
@@ -406,6 +481,36 @@ function goTo(path) {
   router.push(path)
 }
 
+function goToAnnouncement(id) {
+  router.push(`/admin/announcements/${id}`)
+}
+
+function formatAnnouncementTime(time) {
+  if (!time) return '-'
+  const date = dayjs(time)
+  const diffDays = dayjs().diff(date, 'day')
+  
+  if (diffDays === 0) {
+    const diffHours = dayjs().diff(date, 'hour')
+    if (diffHours === 0) {
+      const diffMinutes = dayjs().diff(date, 'minute')
+      return diffMinutes <= 1 ? '刚刚' : `${diffMinutes}分钟前`
+    }
+    return `${diffHours}小时前`
+  }
+  
+  if (diffDays === 1) return '昨天'
+  if (diffDays < 7) return `${diffDays}天前`
+  
+  return date.format('YYYY-MM-DD')
+}
+
+function isNew(time) {
+  if (!time) return false
+  const diffHours = dayjs().diff(dayjs(time), 'hour')
+  return diffHours <= 24
+}
+
 function barPercent(item) {
   return Math.max(12, Math.round(((Number(item.reservationCount) || 0) / maxUsageCount.value) * 100))
 }
@@ -464,6 +569,71 @@ async function loadTrend() {
   trendSummary.value = res.data?.summary || {}
 }
 
+async function loadAnnouncements() {
+  try {
+    // 首版使用模拟数据，后续可接入真实接口
+    // const res = await adminApi.getAnnouncements({ pageSize: 5, current: 1 })
+    // announcements.value = ensureArray(res.data, ['list', 'rows']).slice(0, 5)
+    
+    // 模拟公告数据
+    announcements.value = [
+      {
+        id: 1,
+        title: '实验室预约系统升级维护通知',
+        summary: '为提升系统性能和用户体验，系统将于本周六凌晨2:00-6:00进行升级维护，期间暂停服务。',
+        content: '为提升系统性能和用户体验，系统将于本周六凌晨2:00-6:00进行升级维护，期间暂停服务。请各位用户提前做好预约安排，给您带来的不便敬请谅解。',
+        priority: 'high',
+        publishTime: dayjs().subtract(2, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+        publisherName: '系统管理员',
+        viewCount: 156
+      },
+      {
+        id: 2,
+        title: '关于加强实验室安全管理的通知',
+        summary: '为确保实验室安全，请各位用户严格遵守实验室使用规范，做好安全防护措施。',
+        content: '为确保实验室安全，请各位用户严格遵守实验室使用规范，做好安全防护措施。',
+        priority: 'medium',
+        publishTime: dayjs().subtract(1, 'day').format('YYYY-MM-DD HH:mm:ss'),
+        publisherName: '安全管理部',
+        viewCount: 89
+      },
+      {
+        id: 3,
+        title: '新增3间智能实验室开放使用',
+        summary: '为满足教学科研需求，学校新增3间智能实验室，配备先进设备，即日起开放预约。',
+        content: '为满足教学科研需求，学校新增3间智能实验室，配备先进设备，即日起开放预约。',
+        priority: 'medium',
+        publishTime: dayjs().subtract(3, 'day').format('YYYY-MM-DD HH:mm:ss'),
+        publisherName: '教务处',
+        viewCount: 234
+      },
+      {
+        id: 4,
+        title: '实验室使用规范培训通知',
+        summary: '为提高实验室使用效率，将于下周三下午举办实验室使用规范培训，欢迎参加。',
+        content: '为提高实验室使用效率，将于下周三下午举办实验室使用规范培训，欢迎参加。',
+        priority: 'normal',
+        publishTime: dayjs().subtract(5, 'day').format('YYYY-MM-DD HH:mm:ss'),
+        publisherName: '培训中心',
+        viewCount: 67
+      },
+      {
+        id: 5,
+        title: '假期实验室开放时间调整公告',
+        summary: '根据学校假期安排，实验室开放时间将进行调整，具体时间请查看详情。',
+        content: '根据学校假期安排，实验室开放时间将进行调整，具体时间请查看详情。',
+        priority: 'normal',
+        publishTime: dayjs().subtract(7, 'day').format('YYYY-MM-DD HH:mm:ss'),
+        publisherName: '系统管理员',
+        viewCount: 123
+      }
+    ]
+  } catch (error) {
+    console.error('加载公告失败:', error)
+    announcements.value = []
+  }
+}
+
 onMounted(async () => {
   clockTimer = window.setInterval(() => {
     now.value = dayjs()
@@ -479,11 +649,13 @@ onMounted(async () => {
     usageList.value = ensureArray(usageRes.data?.ranking, ['list', 'rows'])
     usageTotal.value = Number(usageRes.data?.totalReservations) || 0
     await loadTrend()
+    await loadAnnouncements()
   } catch (error) {
     pendingList.value = []
     usageList.value = []
     trendSeries.value = []
     trendSummary.value = {}
+    announcements.value = []
     ElMessage.error(error?.message || '加载看板数据失败')
   }
 })
@@ -747,6 +919,127 @@ onBeforeUnmount(() => {
   font-weight: 700;
   color: #1e293b;
   line-height: 1;
+}
+.stat-label {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin-top: 0.25rem;
+}
+.announcement-card {
+  position: relative;
+  overflow: hidden;
+}
+.announcement-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #f59e0b, #ef4444, #ec4899);
+}
+.announcement-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.announcement-item {
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, #fefefe 0%, #f9fafb 100%);
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+.announcement-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #409eff, #67c23a);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.announcement-item:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #409eff;
+}
+.announcement-item:hover::before {
+  opacity: 1;
+}
+.announcement-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+.announcement-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+.announcement-priority {
+  flex-shrink: 0;
+}
+.announcement-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.new-badge {
+  flex-shrink: 0;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.announcement-time {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.announcement-summary {
+  font-size: 0.9rem;
+  color: #64748b;
+  line-height: 1.6;
+  margin: 0 0 0.75rem 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.announcement-footer {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+.announcement-author,
+.announcement-views {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.announcement-author .el-icon,
+.announcement-views .el-icon {
+  font-size: 0.9rem;
 }
 .stat-label {
   font-size: 0.8rem;
