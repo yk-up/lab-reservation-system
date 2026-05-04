@@ -26,17 +26,27 @@
     </section>
 
     <section class="portal-grid mt-3">
-      <div class="card">
+      <div class="card quick-apps-card">
         <div class="section-head">
           <div>
-            <h3 class="section-title">快捷应用</h3>
-            <p class="section-subtitle">快速进入后台核心功能</p>
+            <h3 class="section-title">
+              <el-icon style="vertical-align: middle; margin-right: 0.5rem;"><Grid /></el-icon>
+              全部应用
+            </h3>
+            <p class="section-subtitle">快速进入后台核心功能模块</p>
           </div>
+          <el-tag type="info" effect="plain">{{ quickActions.length }} 个应用</el-tag>
         </div>
         <div class="quick-grid">
-          <button v-for="item in quickActions" :key="item.path" class="quick-item" @click="goTo(item.path)">
+          <button 
+            v-for="item in quickActions" 
+            :key="item.path" 
+            class="quick-item" 
+            @click="goTo(item.path)"
+            :class="{ 'is-active': $route.path === item.path }"
+          >
             <span class="quick-icon" :style="{ background: item.bg, color: item.color }">
-              <el-icon><component :is="item.icon" /></el-icon>
+              <el-icon :size="20"><component :is="item.icon" /></el-icon>
             </span>
             <span class="quick-text">
               <strong>{{ item.label }}</strong>
@@ -46,10 +56,13 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card summary-card">
         <div class="section-head">
           <div>
-            <h3 class="section-title">工作台概览</h3>
+            <h3 class="section-title">
+              <el-icon style="vertical-align: middle; margin-right: 0.5rem;"><Monitor /></el-icon>
+              工作台概览
+            </h3>
             <p class="section-subtitle">今日优先处理事项</p>
           </div>
         </div>
@@ -315,9 +328,11 @@ const statCards = [
 
 const quickActions = [
   { path: '/admin/announcements', label: '公告中心', desc: '查看并管理系统公告', icon: 'Bell', bg: '#e8f3ff', color: '#409eff' },
-  { path: '/admin/audit', label: '预约审核', desc: '处理审核申请', icon: 'DocumentChecked', bg: '#edf9ee', color: '#67c23a' },
+  { path: '/admin/notices', label: '消息通知', desc: '查看系统消息通知', icon: 'ChatDotRound', bg: '#f4f0ff', color: '#9333ea' },
+  { path: '/admin/audit', label: '预约审核', desc: '处理预约审核申请', icon: 'DocumentChecked', bg: '#edf9ee', color: '#67c23a' },
   { path: '/admin/labs', label: '实验室管理', desc: '维护实验室信息', icon: 'OfficeBuilding', bg: '#fff5e8', color: '#e6a23c' },
-  { path: '/admin/blacklist', label: '黑名单管理', desc: '处理限制账号', icon: 'UserFilled', bg: '#feeeee', color: '#f56c6c' }
+  { path: '/admin/blacklist', label: '黑名单管理', desc: '处理限制账号', icon: 'UserFilled', bg: '#feeeee', color: '#f56c6c' },
+  { path: '/admin/dashboard', label: '数据看板', desc: '查看统计数据分析', icon: 'DataAnalysis', bg: '#e0f7fa', color: '#0891b2' }
 ]
 
 const displayName = computed(() => userStore.realName || userStore.userInfo?.username || '管理员')
@@ -545,6 +560,32 @@ onBeforeUnmount(() => {
   grid-template-columns: 1.2fr 1fr;
   gap: 1rem;
 }
+.quick-apps-card {
+  position: relative;
+  overflow: hidden;
+}
+.quick-apps-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #409eff, #67c23a, #e6a23c);
+}
+.summary-card {
+  position: relative;
+  overflow: hidden;
+}
+.summary-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #67c23a, #409eff);
+}
 .quick-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -559,6 +600,33 @@ onBeforeUnmount(() => {
   gap: 0.75rem;
   text-align: left;
   cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+.quick-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 0%, rgba(64, 158, 255, 0.05) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.quick-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #409eff;
+}
+.quick-item:hover::before {
+  opacity: 1;
+}
+.quick-item.is-active {
+  border-color: #409eff;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+}
+.quick-item.is-active .quick-text strong {
+  color: #409eff;
 }
 .quick-icon {
   width: 44px;
@@ -568,17 +636,26 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: transform 0.3s ease;
+}
+.quick-item:hover .quick-icon {
+  transform: scale(1.1);
 }
 .quick-text {
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 1;
 }
 .quick-text strong {
   color: #0f172a;
+  font-size: 0.95rem;
+  transition: color 0.3s ease;
 }
 .quick-text small {
   margin-top: 0.2rem;
   color: #64748b;
+  font-size: 0.8rem;
 }
 .summary-list {
   display: flex;
@@ -591,7 +668,21 @@ onBeforeUnmount(() => {
   gap: 1rem;
   padding: 0.9rem 1rem;
   border-radius: 0.9rem;
-  background: #f8fafc;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+.summary-item:hover {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  transform: translateX(4px);
+}
+.summary-item span {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+.summary-item strong {
+  font-size: 1.1rem;
+  font-weight: 700;
 }
 .summary-actions {
   display: flex;
@@ -621,6 +712,26 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 1rem;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border: 1px solid #f1f5f9;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 0%, rgba(0, 0, 0, 0.02) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+  border-color: #e2e8f0;
+}
+.stat-card:hover::before {
+  opacity: 1;
 }
 .stat-icon {
   width: 3rem;
@@ -932,6 +1043,9 @@ onBeforeUnmount(() => {
   color: #64748b;
 }
 @media (max-width: 1100px) {
+  .portal-grid {
+    grid-template-columns: 1fr;
+  }
   .usage-section {
     grid-template-columns: 1fr;
   }
@@ -940,6 +1054,15 @@ onBeforeUnmount(() => {
   }
 }
 @media (max-width: 768px) {
+  .hero-card {
+    grid-template-columns: 1fr;
+  }
+  .quick-grid {
+    grid-template-columns: 1fr;
+  }
+  .stat-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .usage-row {
     grid-template-columns: 1fr;
   }
