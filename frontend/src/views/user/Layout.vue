@@ -103,7 +103,7 @@ function handleCommand(cmd) {
     ElMessage.success('已退出登录')
     router.push('/login')
   } else if (cmd === 'admin') {
-    router.push('/admin/dashboard')
+    router.push('/admin/workbench')
   }
 }
 

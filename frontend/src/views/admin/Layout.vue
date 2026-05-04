@@ -43,9 +43,19 @@
       <!-- 顶部栏 -->
       <header class="admin-header">
         <el-button text :icon="sidebarCollapsed ? Expand : Fold" @click="sidebarCollapsed = !sidebarCollapsed" />
-        <span class="header-title">{{ currentTitle }}</span>
+        <div class="header-system">
+          <p class="system-title">实验室预约系统</p>
+          <p class="page-title">{{ currentTitle }}</p>
+        </div>
         <div class="header-right">
-          <span class="admin-name">{{ userStore.realName }}</span>
+          <div class="header-date">
+            <span class="date-label">今天</span>
+            <span class="date-value">{{ currentDateText }}</span>
+          </div>
+          <div class="admin-profile">
+            <el-avatar :size="32" class="admin-avatar">{{ avatarText }}</el-avatar>
+            <span class="admin-name">{{ userDisplayName }}</span>
+          </div>
           <el-button type="danger" size="small" plain @click="handleLogout">退出</el-button>
         </div>
       </header>
@@ -59,7 +69,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { School, House, Expand, Fold } from '@element-plus/icons-vue'
@@ -69,19 +79,22 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const sidebarCollapsed = ref(false)
+const now = ref(new Date())
 /** el-menu default-active 在部分版本上对 prop 变更不生效，侧边栏切换时强制同步 */
 const sidebarMenuKey = ref(0)
+let dateTimer = null
 
 const menuItems = [
-  { path: '/admin/dashboard', label: '数据看板', icon: 'DataAnalysis' },
-  { path: '/admin/announcements', label: '公告中心', icon: 'Bell' },
+  { path: '/admin/screen', label: '数据大屏', icon: 'DataAnalysis' },
+  { path: '/admin/workbench', label: '工作台', icon: 'HomeFilled' },
   {
     path: '/admin/notices',
     label: '消息通知',
     icon: 'ChatDotRound',
     badgeUnread: true
   },
-  { path: '/admin/audit', label: '预约审核', icon: 'DocumentChecked' },
+  { path: '/admin/announcements', label: '公告中心', icon: 'Bell' },
+  { path: '/admin/approval', label: '审批中心', icon: 'DocumentChecked' },
   { path: '/admin/labs', label: '实验室管理', icon: 'OfficeBuilding' },
   { path: '/admin/blacklist', label: '黑名单管理', icon: 'UserFilled' }
 ]
@@ -94,8 +107,37 @@ const currentTitle = computed(() => {
   return menuItems.find(m => m.path === route.path)?.label || route.meta?.title || '管理后台'
 })
 
+const userDisplayName = computed(() => {
+  return userStore.realName || userStore.userInfo?.username || '管理员'
+})
+
+const avatarText = computed(() => {
+  return userDisplayName.value.trim().slice(-2) || '管'
+})
+
+const currentDateText = computed(() => {
+  const date = now.value
+  const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day} ${weekDays[date.getDay()]}`
+})
+
 watch(activeMenuIndex, () => {
   sidebarMenuKey.value += 1
+})
+
+onMounted(() => {
+  dateTimer = window.setInterval(() => {
+    now.value = new Date()
+  }, 60000)
+})
+
+onUnmounted(() => {
+  if (dateTimer) {
+    window.clearInterval(dateTimer)
+    dateTimer = null
+  }
 })
 
 function goHome() {
@@ -175,22 +217,69 @@ function handleLogout() {
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
-.header-title {
+.header-system {
   flex: 1;
-  font-size: 1rem;
-  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.system-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
   color: #1e293b;
+  line-height: 1.1;
+}
+
+.page-title {
+  margin: 0;
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.1;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
+}
+
+.header-date {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+}
+
+.date-label {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.date-value {
+  font-size: 0.82rem;
+  color: #334155;
+  font-weight: 500;
+}
+
+.admin-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.admin-avatar {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: #fff;
+  font-size: 0.78rem;
 }
 
 .admin-name {
   font-size: 0.875rem;
-  color: #475569;
+  color: #334155;
+  font-weight: 500;
 }
 
 .admin-content {
@@ -213,5 +302,9 @@ function handleLogout() {
 @media (max-width: 768px) {
   .sidebar { width: 64px; }
   .sidebar-title { display: none; }
+  .header-date { display: none; }
+  .page-title { display: none; }
+  .admin-name { display: none; }
+  .admin-header { padding: 0 0.85rem; }
 }
 </style>

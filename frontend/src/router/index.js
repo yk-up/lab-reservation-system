@@ -52,12 +52,28 @@ const routes = [
     component: () => import('@/views/admin/Layout.vue'),
     meta: { requiresAuth: true, requiresAdmin: true },
     children: [
-      { path: '', redirect: '/admin/dashboard' },
+      { path: '', redirect: '/admin/workbench' },
+      {
+        path: 'workbench',
+        name: 'AdminWorkbench',
+        component: () => import('@/views/admin/Workbench.vue'),
+        meta: { title: '工作台' }
+      },
       {
         path: 'dashboard',
-        name: 'Dashboard',
+        redirect: '/admin/screen'
+      },
+      {
+        path: 'notices',
+        name: 'AdminNotices',
+        component: () => import('@/views/user/Notices.vue'),
+        meta: { title: '消息通知' }
+      },
+      {
+        path: 'screen',
+        name: 'AdminDataScreen',
         component: () => import('@/views/admin/Dashboard.vue'),
-        meta: { title: '数据看板' }
+        meta: { title: '数据大屏' }
       },
       {
         path: 'announcements',
@@ -72,16 +88,14 @@ const routes = [
         meta: { title: '公告详情', activeMenu: '/admin/announcements' }
       },
       {
-        path: 'notices',
-        name: 'AdminNotices',
-        component: () => import('@/views/user/Notices.vue'),
-        meta: { title: '消息通知', activeMenu: '/admin/notices' }
+        path: 'approval',
+        name: 'AdminApprovalCenter',
+        component: () => import('@/views/admin/Audit.vue'),
+        meta: { title: '审批中心' }
       },
       {
         path: 'audit',
-        name: 'Audit',
-        component: () => import('@/views/admin/Audit.vue'),
-        meta: { title: '预约审核' }
+        redirect: '/admin/approval'
       },
       {
         path: 'labs',

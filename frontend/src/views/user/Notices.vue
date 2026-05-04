@@ -128,7 +128,7 @@ const pagedNotices = computed(() => {
 
 function noticeTargetPath(n) {
   if (isAdminNotices.value) {
-    if (n.type === 1 || n.type === 2 || n.type === 3) return '/admin/audit'
+    if (n.type === 1 || n.type === 2 || n.type === 3) return '/admin/approval'
     if (n.type === 4) return '/admin/announcements'
     return '/admin/notices'
   }
@@ -138,9 +138,9 @@ function noticeTargetPath(n) {
 
 function noticeTargetLabel(n) {
   if (isAdminNotices.value) {
-    if (n.type === 1) return '预约审核'
-    if (n.type === 2) return '预约审核'
-    if (n.type === 3) return '预约审核'
+    if (n.type === 1) return '审批中心'
+    if (n.type === 2) return '审批中心'
+    if (n.type === 3) return '审批中心'
     if (n.type === 4) return '公告中心'
     return ''
   }
@@ -152,7 +152,7 @@ function noticeTargetLabel(n) {
 
 function goBack() {
   if (isAdminNotices.value) {
-    router.push('/admin/dashboard')
+    router.push('/admin/workbench')
     return
   }
   router.back()
@@ -160,7 +160,7 @@ function goBack() {
 
 function goEmptyPrimary() {
   if (isAdminNotices.value) {
-    router.push('/admin/audit')
+    router.push('/admin/approval')
     return
   }
   router.push('/my-reservations')

@@ -5,7 +5,7 @@
         <h2 class="page-title">公告中心</h2>
         <p class="page-sub">系统发布公告列表与工作台展示区同源；点击查看独立详情页。</p>
       </div>
-      <el-button text type="primary" @click="$router.push('/admin/dashboard')">返回工作台</el-button>
+      <el-button text type="primary" @click="$router.push('/admin/workbench')">返回工作台</el-button>
     </div>
 
     <div v-if="loading" class="card inner-card">
@@ -96,7 +96,10 @@ onMounted(async () => {
 
 <style scoped>
 .announcement-page {
-  max-width: 840px;
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 .page-head {
   display: flex;
@@ -129,6 +132,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  width: 100%;
 }
 .ann-row {
   padding: 1rem 1.15rem;
@@ -173,7 +177,7 @@ onMounted(async () => {
 .pager-wrap {
   margin-top: 1.25rem;
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
 }
 @media (max-width: 768px) {
   .page-head {

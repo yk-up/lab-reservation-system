@@ -2,9 +2,9 @@
   <div class="dashboard-page">
     <section class="card hero-card">
       <div>
-        <div class="hero-badge">Admin Workbench</div>
+        <div class="hero-badge">Admin Data Screen</div>
         <h2 class="hero-title">{{ greeting }}，{{ displayName }}</h2>
-        <p class="hero-desc">欢迎进入实验室预约管理后台，首页聚合账号信息、日期信息、快捷入口与核心管理数据。</p>
+        <p class="hero-desc">数据大屏聚合关键业务指标、趋势统计与待办数据，便于统一查看管理态势。</p>
         <div class="hero-tags">
           <el-tag type="primary" effect="dark">管理员工作台</el-tag>
           <el-tag type="success" effect="plain">{{ currentDateText }}</el-tag>
@@ -61,9 +61,9 @@
           <div>
             <h3 class="section-title">
               <el-icon style="vertical-align: middle; margin-right: 0.5rem;"><Monitor /></el-icon>
-              工作台概览
+              大屏概览
             </h3>
-            <p class="section-subtitle">今日优先处理事项</p>
+            <p class="section-subtitle">核心指标与待办概览</p>
           </div>
         </div>
         <div class="summary-list">
@@ -73,7 +73,7 @@
           <div class="summary-item"><span>黑名单人数</span><strong class="danger">{{ data.blacklistCount ?? 0 }}</strong></div>
         </div>
         <div class="summary-actions">
-          <el-button type="primary" @click="goTo('/admin/audit')">处理审核</el-button>
+          <el-button type="primary" @click="goTo('/admin/approval')">处理审批</el-button>
           <el-button @click="goTo('/admin/labs')">查看实验室</el-button>
         </div>
       </div>
@@ -402,12 +402,13 @@ const statCards = [
 ]
 
 const quickActions = [
-  { path: '/admin/announcements', label: '公告中心', desc: '查看并管理系统公告', icon: 'Bell', bg: '#e8f3ff', color: '#409eff' },
+  { path: '/admin/screen', label: '数据大屏', desc: '查看全局统计分析', icon: 'DataAnalysis', bg: '#e0f7fa', color: '#0891b2' },
+  { path: '/admin/workbench', label: '工作台', desc: '查看后台首页与核心数据', icon: 'HomeFilled', bg: '#e0edff', color: '#2563eb' },
   { path: '/admin/notices', label: '消息通知', desc: '查看系统消息通知', icon: 'ChatDotRound', bg: '#f4f0ff', color: '#9333ea' },
-  { path: '/admin/audit', label: '预约审核', desc: '处理预约审核申请', icon: 'DocumentChecked', bg: '#edf9ee', color: '#67c23a' },
+  { path: '/admin/announcements', label: '公告中心', desc: '查看并管理系统公告', icon: 'Bell', bg: '#e8f3ff', color: '#409eff' },
+  { path: '/admin/approval', label: '审批中心', desc: '处理预约审批申请', icon: 'DocumentChecked', bg: '#edf9ee', color: '#67c23a' },
   { path: '/admin/labs', label: '实验室管理', desc: '维护实验室信息', icon: 'OfficeBuilding', bg: '#fff5e8', color: '#e6a23c' },
-  { path: '/admin/blacklist', label: '黑名单管理', desc: '处理限制账号', icon: 'UserFilled', bg: '#feeeee', color: '#f56c6c' },
-  { path: '/admin/dashboard', label: '数据看板', desc: '查看统计数据分析', icon: 'DataAnalysis', bg: '#e0f7fa', color: '#0891b2' }
+  { path: '/admin/blacklist', label: '黑名单管理', desc: '处理限制账号', icon: 'UserFilled', bg: '#feeeee', color: '#f56c6c' }
 ]
 
 const displayName = computed(() => userStore.realName || userStore.userInfo?.username || '管理员')
@@ -511,6 +512,15 @@ function isNew(time) {
   return diffHours <= 24
 }
 
+function resolveAnnouncementPriority(item) {
+  const time = item?.createTime || item?.publishTime
+  if (!time) return 'normal'
+  const diffDays = dayjs().diff(dayjs(time), 'day')
+  if (diffDays <= 1) return 'high'
+  if (diffDays <= 3) return 'medium'
+  return 'normal'
+}
+
 function barPercent(item) {
   return Math.max(12, Math.round(((Number(item.reservationCount) || 0) / maxUsageCount.value) * 100))
 }
@@ -571,65 +581,19 @@ async function loadTrend() {
 
 async function loadAnnouncements() {
   try {
-    // 首版使用模拟数据，后续可接入真实接口
-    // const res = await adminApi.getAnnouncements({ pageSize: 5, current: 1 })
-    // announcements.value = ensureArray(res.data, ['list', 'rows']).slice(0, 5)
-    
-    // 模拟公告数据
-    announcements.value = [
-      {
-        id: 1,
-        title: '实验室预约系统升级维护通知',
-        summary: '为提升系统性能和用户体验，系统将于本周六凌晨2:00-6:00进行升级维护，期间暂停服务。',
-        content: '为提升系统性能和用户体验，系统将于本周六凌晨2:00-6:00进行升级维护，期间暂停服务。请各位用户提前做好预约安排，给您带来的不便敬请谅解。',
-        priority: 'high',
-        publishTime: dayjs().subtract(2, 'hour').format('YYYY-MM-DD HH:mm:ss'),
-        publisherName: '系统管理员',
-        viewCount: 156
-      },
-      {
-        id: 2,
-        title: '关于加强实验室安全管理的通知',
-        summary: '为确保实验室安全，请各位用户严格遵守实验室使用规范，做好安全防护措施。',
-        content: '为确保实验室安全，请各位用户严格遵守实验室使用规范，做好安全防护措施。',
-        priority: 'medium',
-        publishTime: dayjs().subtract(1, 'day').format('YYYY-MM-DD HH:mm:ss'),
-        publisherName: '安全管理部',
-        viewCount: 89
-      },
-      {
-        id: 3,
-        title: '新增3间智能实验室开放使用',
-        summary: '为满足教学科研需求，学校新增3间智能实验室，配备先进设备，即日起开放预约。',
-        content: '为满足教学科研需求，学校新增3间智能实验室，配备先进设备，即日起开放预约。',
-        priority: 'medium',
-        publishTime: dayjs().subtract(3, 'day').format('YYYY-MM-DD HH:mm:ss'),
-        publisherName: '教务处',
-        viewCount: 234
-      },
-      {
-        id: 4,
-        title: '实验室使用规范培训通知',
-        summary: '为提高实验室使用效率，将于下周三下午举办实验室使用规范培训，欢迎参加。',
-        content: '为提高实验室使用效率，将于下周三下午举办实验室使用规范培训，欢迎参加。',
-        priority: 'normal',
-        publishTime: dayjs().subtract(5, 'day').format('YYYY-MM-DD HH:mm:ss'),
-        publisherName: '培训中心',
-        viewCount: 67
-      },
-      {
-        id: 5,
-        title: '假期实验室开放时间调整公告',
-        summary: '根据学校假期安排，实验室开放时间将进行调整，具体时间请查看详情。',
-        content: '根据学校假期安排，实验室开放时间将进行调整，具体时间请查看详情。',
-        priority: 'normal',
-        publishTime: dayjs().subtract(7, 'day').format('YYYY-MM-DD HH:mm:ss'),
-        publisherName: '系统管理员',
-        viewCount: 123
+    const res = await adminApi.dashboardAnnouncements({ limit: 5 })
+    const rows = ensureArray(res.data, ['list', 'rows'])
+    announcements.value = rows.map(item => {
+      const content = String(item?.content || '').replace(/\s+/g, ' ').trim()
+      return {
+        ...item,
+        publishTime: item?.createTime || item?.publishTime,
+        summary: content.length > 80 ? `${content.slice(0, 80)}...` : content,
+        priority: resolveAnnouncementPriority(item),
+        publisherName: item?.publisherName || '系统管理员'
       }
-    ]
-  } catch (error) {
-    console.error('加载公告失败:', error)
+    })
+  } catch {
     announcements.value = []
   }
 }
