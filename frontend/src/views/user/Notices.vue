@@ -1,7 +1,10 @@
 <template>
   <div class="page-container">
-    <div class="flex-between mb-2 header-wrap">
-      <h2 class="page-title">消息通知</h2>
+    <div class="header-wrap user-page-header mb-2">
+      <div>
+        <h2 class="page-title user-page-title">消息通知</h2>
+        <p class="user-page-subtitle">集中查看审核结果与预约提醒，支持快速标记已读</p>
+      </div>
       <div class="header-actions">
         <el-tag v-if="userStore.unreadCount > 0" type="danger" effect="dark">未读 {{ userStore.unreadCount }}</el-tag>
         <el-button size="small" text @click="readAll">全部已读</el-button>
@@ -29,7 +32,7 @@
         <div
           v-for="n in pagedNotices"
           :key="n.id"
-          class="notice-item"
+          class="notice-item user-card user-card-hover"
           :class="{ unread: n.isRead === 0 }"
           @click="handleNoticeClick(n)"
         >
@@ -231,7 +234,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.page-title { font-size: 1.25rem; font-weight: 600; }
 .header-wrap, .header-actions, .notice-head, .notice-tags, .notice-footer, .list-footer {
   display: flex;
   align-items: center;
@@ -245,21 +247,13 @@ onUnmounted(() => {
   gap: 0.75rem;
 }
 .notice-item {
-  background: #fff;
-  border-radius: 0.75rem;
+  border-radius: var(--user-radius-lg);
   padding: 1rem 1.25rem;
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
   cursor: pointer;
   position: relative;
-  box-shadow: 0 1px 6px rgba(0,0,0,0.05);
-  border: 1px solid transparent;
-  transition: all 0.2s;
-}
-.notice-item:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.12);
 }
 .notice-item.unread {
   border-color: #a0cfff;

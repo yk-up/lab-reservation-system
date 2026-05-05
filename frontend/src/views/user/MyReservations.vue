@@ -1,8 +1,13 @@
 <template>
   <div class="page-container">
-    <h2 class="page-title mb-2">我的预约</h2>
+    <div class="user-page-header mb-2">
+      <div>
+        <h2 class="page-title user-page-title">我的预约</h2>
+        <p class="user-page-subtitle">按状态和时间快速查看预约进度，支持详情展开与操作</p>
+      </div>
+    </div>
 
-    <div class="filter-bar card-like mb-2">
+    <div class="filter-bar card-like user-card user-filter-bar mb-2">
       <div class="filter-row">
         <span class="filter-label">预约日期</span>
         <el-date-picker
@@ -44,12 +49,15 @@
     </div>
 
     <div v-else class="reservation-list mt-2">
-      <div v-for="item in filteredList" :key="item.id" class="reservation-card">
+      <div v-for="item in filteredList" :key="item.id" class="reservation-card user-card user-card-hover">
         <div class="res-header">
           <h3 class="res-title">{{ item.title }}</h3>
-          <span class="status-badge" :class="statusClass(item.status)">
-            {{ statusText(item.status) }}
-          </span>
+          <div class="res-header-right">
+            <span class="status-badge" :class="statusClass(item.status)">
+              {{ statusText(item.status) }}
+            </span>
+            <span class="time-tip">{{ reservationTimeHint(item) }}</span>
+          </div>
         </div>
 
         <div class="res-info">
@@ -67,6 +75,15 @@
           </div>
         </div>
 
+        <div class="res-tags">
+          <el-tag size="small" effect="plain" :type="reminderTagType(item)">
+            {{ reminderTagText(item) }}
+          </el-tag>
+          <el-tag size="small" type="info" effect="plain">
+            时段：{{ formatDateTimeFull(item.startTime) }} ~ {{ formatTime(item.endTime) }}
+          </el-tag>
+        </div>
+
         <div v-if="item.rejectReason" class="reject-reason">
           <el-icon color="#f56c6c"><WarningFilled /></el-icon>
           拒绝原因：{{ item.rejectReason }}
@@ -74,19 +91,46 @@
 
         <div class="res-footer">
           <span class="create-time">申请时间：{{ formatDateTime(item.createTime) }}</span>
-          <el-button
-            v-if="item.status === 0 || item.status === 1"
-            type="danger"
-            size="small"
-            plain
-            :loading="cancelingId === item.id"
-            @click="cancelReservation(item)"
-          >
-            取消预约
-          </el-button>
+          <div class="footer-actions">
+            <el-button size="small" text type="primary" @click="openDetail(item)">查看详情</el-button>
+            <el-button
+              v-if="item.status === 0 || item.status === 1"
+              type="danger"
+              size="small"
+              plain
+              :loading="cancelingId === item.id"
+              @click="cancelReservation(item)"
+            >
+              取消预约
+            </el-button>
+          </div>
         </div>
       </div>
     </div>
+
+    <el-dialog v-model="detailVisible" title="预约详情" width="560px">
+      <template v-if="currentReservation">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="预约主题">{{ currentReservation.title || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="实验室">{{ displayLabName(currentReservation) }}</el-descriptions-item>
+          <el-descriptions-item label="预约时段">
+            {{ formatDateTimeFull(currentReservation.startTime) }} ~ {{ formatDateTimeFull(currentReservation.endTime) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="人数">{{ currentReservation.attendees || 0 }} 人</el-descriptions-item>
+          <el-descriptions-item label="当前状态">
+            <el-tag size="small" :type="reminderTagType(currentReservation)">
+              {{ statusText(currentReservation.status) }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="状态提醒">{{ reminderTagText(currentReservation) }}</el-descriptions-item>
+          <el-descriptions-item label="时间提示">{{ reservationTimeHint(currentReservation) }}</el-descriptions-item>
+          <el-descriptions-item label="申请时间">{{ formatDateTimeFull(currentReservation.createTime) }}</el-descriptions-item>
+          <el-descriptions-item v-if="currentReservation.rejectReason" label="拒绝原因">
+            {{ currentReservation.rejectReason }}
+          </el-descriptions-item>
+        </el-descriptions>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -104,6 +148,8 @@ const loading = ref(true)
 const list = ref([])
 const activeTab = ref('all')
 const cancelingId = ref(null)
+const detailVisible = ref(false)
+const currentReservation = ref(null)
 /** 仅按自然日筛选：预约时段与该日有交集即显示 */
 const filterDate = ref(null)
 const filterLabName = ref('')
@@ -165,12 +211,81 @@ function displayLabName(item) {
 const statusText = (s) => ['待审核', '已通过', '已拒绝', '已取消', '已完成'][s] ?? '未知'
 const statusClass = (s) => ['status-pending', 'status-approved', 'status-rejected', 'status-canceled', 'status-finished'][s] ?? ''
 
+function safeDayjs(t) {
+  return t ? dayjs(t) : null
+}
+
+function betweenNowText(target) {
+  const now = dayjs()
+  const diff = target.diff(now)
+  const absMinutes = Math.max(0, Math.round(Math.abs(diff) / 60000))
+  const days = Math.floor(absMinutes / (24 * 60))
+  const hours = Math.floor((absMinutes % (24 * 60)) / 60)
+  const minutes = absMinutes % 60
+  const text = []
+  if (days) text.push(`${days}天`)
+  if (hours) text.push(`${hours}小时`)
+  if (!days && minutes) text.push(`${minutes}分钟`)
+  const delta = text.length ? text.join('') : '1分钟内'
+  return diff >= 0 ? `${delta}后` : `${delta}前`
+}
+
+function reservationTimeHint(item) {
+  const now = dayjs()
+  const start = safeDayjs(item.startTime)
+  const end = safeDayjs(item.endTime)
+  if (!start || !end) return '时间信息不完整'
+  if (item.status === 0) return `提交于 ${betweenNowText(safeDayjs(item.createTime) || now)}`
+  if (item.status === 2) return '已拒绝，请查看原因后重新预约'
+  if (item.status === 3) return '已取消，不再占用时段'
+  if (item.status === 4) return '该预约流程已完成'
+  if (end.isBefore(now)) return `已结束 ${betweenNowText(end)}`
+  if (start.isAfter(now)) return `距开始 ${betweenNowText(start)}`
+  return `进行中，距结束 ${betweenNowText(end)}`
+}
+
+function reminderTagText(item) {
+  const now = dayjs()
+  const start = safeDayjs(item.startTime)
+  const end = safeDayjs(item.endTime)
+  if (item.status === 0) return '等待管理员审核'
+  if (item.status === 2) return '审核未通过'
+  if (item.status === 3) return '预约已取消'
+  if (item.status === 4) return '预约已完成'
+  if (!start || !end) return '请核对预约时段'
+  if (start.isAfter(now)) return '即将开始'
+  if (end.isBefore(now)) return '预约已结束'
+  return '预约进行中'
+}
+
+function reminderTagType(item) {
+  if (item.status === 0) return 'warning'
+  if (item.status === 2 || item.status === 3) return 'danger'
+  if (item.status === 4) return 'success'
+  const now = dayjs()
+  const start = safeDayjs(item.startTime)
+  const end = safeDayjs(item.endTime)
+  if (!start || !end) return 'info'
+  if (start.isAfter(now)) return 'info'
+  if (end.isBefore(now)) return 'success'
+  return 'primary'
+}
+
 function formatDateTime(t) {
   return t ? dayjs(t).format('MM-DD HH:mm') : '-'
 }
 
+function formatDateTimeFull(t) {
+  return t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-'
+}
+
 function formatTime(t) {
   return t ? dayjs(t).format('HH:mm') : '-'
+}
+
+function openDetail(item) {
+  currentReservation.value = item
+  detailVisible.value = true
 }
 
 function goToLabs() {
@@ -201,14 +316,11 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page-title { font-size: 1.25rem; font-weight: 600; color: #303133; }
 .loading-wrap { padding: 1rem 0; }
 
 .card-like {
-  background: #fff;
-  border-radius: 0.75rem;
+  border-radius: var(--user-radius-lg);
   padding: 1rem 1.25rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 .filter-bar {
   display: flex;
@@ -235,10 +347,8 @@ onMounted(async () => {
 }
 
 .reservation-card {
-  background: #fff;
-  border-radius: 0.75rem;
+  border-radius: var(--user-radius-lg);
   padding: 1.25rem;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 
 .res-header {
@@ -248,6 +358,12 @@ onMounted(async () => {
   margin-bottom: 0.75rem;
   gap: 0.5rem;
 }
+.res-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
 
 .res-title {
   font-size: 1rem;
@@ -255,11 +371,21 @@ onMounted(async () => {
   color: #303133;
   flex: 1;
 }
+.time-tip {
+  font-size: 0.75rem;
+  color: #909399;
+}
 
 .res-info {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.res-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   margin-bottom: 0.75rem;
 }
 
@@ -287,7 +413,14 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .create-time { font-size: 0.75rem; color: #c0c4cc; }
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
 </style>

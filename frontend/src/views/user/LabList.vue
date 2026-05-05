@@ -1,9 +1,45 @@
 <template>
   <div class="page-container">
-    <div class="page-header mb-2">
+    <div class="home-overview user-card mb-3">
+      <div class="overview-head">
+        <div>
+          <h2 class="overview-title">{{ greetingText }}，{{ userDisplayName }}</h2>
+          <p class="overview-subtitle">{{ todayText }} {{ weekText }} · {{ weatherText }}</p>
+        </div>
+      </div>
+      <div class="overview-grid">
+        <div class="overview-card">
+          <div class="overview-label">未读消息</div>
+          <div class="overview-value">{{ userStore.isLoggedIn ? unreadCount : '-' }}</div>
+          <div class="overview-extra">
+            <span>{{ userStore.isLoggedIn ? '及时查看审核与提醒通知' : '登录后查看通知消息' }}</span>
+            <el-button type="primary" text @click="goNotices">
+              {{ userStore.isLoggedIn ? '查看消息' : '去登录' }}
+            </el-button>
+          </div>
+        </div>
+        <div class="overview-card">
+          <div class="overview-label">我的预约</div>
+          <div class="overview-value">{{ userStore.isLoggedIn ? myReservations.length : '-' }}</div>
+          <div class="overview-extra">
+            <span v-if="userStore.isLoggedIn">今日 {{ todayReservationCount }} 条，待审核 {{ pendingReservationCount }} 条</span>
+            <span v-else>登录后查看个人预约摘要</span>
+            <el-button type="primary" text @click="goMyReservations">
+              {{ userStore.isLoggedIn ? '查看预约' : '去登录' }}
+            </el-button>
+          </div>
+        </div>
+        <div class="overview-card">
+          <div class="overview-label">今日提示</div>
+          <div class="overview-tip">{{ todayTip }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-header user-page-header mb-2">
       <div>
-        <h2 class="page-title">实验室列表</h2>
-        <p class="page-subtitle">浏览实验室信息，并结合使用率参考选择预约对象</p>
+        <h2 class="page-title user-page-title">实验室列表</h2>
+        <p class="page-subtitle user-page-subtitle">浏览实验室信息，并结合使用率参考选择预约对象</p>
       </div>
       <el-input
         v-model="searchText"
@@ -15,7 +51,7 @@
     </div>
 
     <div class="usage-panel mb-3" v-if="usageList.length">
-      <div class="usage-card-left card usage-shell">
+      <div class="usage-card-left card user-card usage-shell">
         <div class="usage-header">
           <div>
             <h3 class="usage-title">实验室使用率排行</h3>
@@ -48,7 +84,7 @@
         </div>
       </div>
 
-      <div class="usage-card-right card usage-shell">
+      <div class="usage-card-right card user-card usage-shell">
         <div class="usage-header compact-header">
           <div>
             <h3 class="usage-title">使用率明细</h3>
@@ -85,7 +121,7 @@
           <div
             v-for="lab in filteredLabs"
             :key="lab.id"
-            class="lab-card"
+            class="lab-card user-card user-card-hover"
             @click="goBook(lab)"
           >
             <div class="lab-card-header">
@@ -137,15 +173,55 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
-import { labApi } from '@/api'
+import dayjs from 'dayjs'
+import { labApi, reservationApi, noticeApi } from '@/api'
+import { useUserStore } from '@/store/user'
 import AppEmptyState from '@/components/AppEmptyState.vue'
 
 const router = useRouter()
+const userStore = useUserStore()
 const loading = ref(true)
 const labs = ref([])
 const usageList = ref([])
 const usageTotal = ref(0)
 const searchText = ref('')
+const unreadCount = ref(0)
+const myReservations = ref([])
+const weatherText = ref('天气信息加载中')
+const WEATHER_CACHE_KEY = 'user_home_weather_v1'
+const WEATHER_CACHE_TTL = 15 * 60 * 1000
+
+const userDisplayName = computed(() => userStore.realName || '同学')
+const currentHour = dayjs().hour()
+const greetingText = computed(() => {
+  if (currentHour < 6) return '夜深了'
+  if (currentHour < 12) return '早上好'
+  if (currentHour < 18) return '下午好'
+  return '晚上好'
+})
+const todayText = computed(() => dayjs().format('YYYY年MM月DD日'))
+const weekText = computed(() => {
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  return weekdays[dayjs().day()]
+})
+const todayReservationCount = computed(() => {
+  const dayStart = dayjs().startOf('day')
+  const dayEnd = dayStart.add(1, 'day')
+  return myReservations.value.filter(item => {
+    if (!item.startTime || !item.endTime) return false
+    const start = dayjs(item.startTime)
+    const end = dayjs(item.endTime)
+    return start.isBefore(dayEnd) && end.isAfter(dayStart)
+  }).length
+})
+const pendingReservationCount = computed(() => myReservations.value.filter(item => item.status === 0).length)
+const todayTip = computed(() => {
+  if (!userStore.isLoggedIn) return '登录后可查看个人预约与消息摘要。'
+  if (unreadCount.value > 0) return `有 ${unreadCount.value} 条未读消息，建议优先处理。`
+  if (todayReservationCount.value > 0) return `你今天有 ${todayReservationCount.value} 条预约安排，请提前准备。`
+  if (pendingReservationCount.value > 0) return `当前有 ${pendingReservationCount.value} 条预约待审核，请留意审核结果。`
+  return '今日暂无紧急事项，祝你学习顺利。'
+})
 
 const filteredLabs = computed(() =>
   labs.value.filter(lab => !searchText.value || lab.name.includes(searchText.value))
@@ -180,11 +256,112 @@ function goBook(lab) {
   router.push(`/labs/${lab.id}/book`)
 }
 
+function goNotices() {
+  router.push(userStore.isLoggedIn ? '/notices' : '/login')
+}
+
+function goMyReservations() {
+  router.push(userStore.isLoggedIn ? '/my-reservations' : '/login')
+}
+
+function inferWeatherFromSeason() {
+  const month = dayjs().month() + 1
+  if (month >= 3 && month <= 5) return '春季，注意早晚温差'
+  if (month >= 6 && month <= 8) return '夏季，注意防暑补水'
+  if (month >= 9 && month <= 11) return '秋季，天气较干燥'
+  return '冬季，注意保暖防寒'
+}
+
+function normalizeWeather(payload) {
+  const current = payload?.current_condition?.[0] || {}
+  const nearestArea = payload?.nearest_area?.[0] || {}
+  const city = nearestArea?.areaName?.[0]?.value || ''
+  const desc = current?.lang_zh?.[0]?.value || current?.weatherDesc?.[0]?.value || ''
+  const temp = current?.temp_C
+  const feelsLike = current?.FeelsLikeC
+  const humidity = current?.humidity
+
+  const head = city ? `${city} ${desc}`.trim() : desc
+  const tempText = temp != null ? `${temp}°C` : ''
+  const feelText = feelsLike != null ? `体感${feelsLike}°C` : ''
+  const humidityText = humidity != null ? `湿度${humidity}%` : ''
+  const segments = [head, tempText, feelText, humidityText].filter(Boolean)
+  return segments.length ? segments.join(' · ') : inferWeatherFromSeason()
+}
+
+function readCachedWeather() {
+  try {
+    const raw = localStorage.getItem(WEATHER_CACHE_KEY)
+    if (!raw) return ''
+    const parsed = JSON.parse(raw)
+    if (!parsed?.text || !parsed?.at) return ''
+    if (Date.now() - parsed.at > WEATHER_CACHE_TTL) return ''
+    return parsed.text
+  } catch {
+    return ''
+  }
+}
+
+function writeCachedWeather(text) {
+  try {
+    localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({ text, at: Date.now() }))
+  } catch {}
+}
+
+async function fetchJsonWithTimeout(url, timeout = 3500) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeout)
+  try {
+    const res = await fetch(url, { signal: controller.signal })
+    if (!res.ok) throw new Error('weather unavailable')
+    return await res.json()
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function fetchWeatherSummary() {
+  const cached = readCachedWeather()
+  if (cached) weatherText.value = cached
+  try {
+    const payload = await fetchJsonWithTimeout('https://wttr.in/?format=j1')
+    const summary = normalizeWeather(payload)
+    weatherText.value = summary
+    writeCachedWeather(summary)
+  } catch {
+    if (!cached) weatherText.value = inferWeatherFromSeason()
+  }
+}
+
+async function fetchHomeDigest() {
+  if (!userStore.isLoggedIn) {
+    unreadCount.value = 0
+    myReservations.value = []
+    return
+  }
+  try {
+    const [noticeRes, reservationRes] = await Promise.all([
+      noticeApi.unreadCount(),
+      reservationApi.myList()
+    ])
+    unreadCount.value = noticeRes.data || 0
+    myReservations.value = reservationRes.data || []
+    userStore.setUnreadCount(unreadCount.value)
+  } catch {
+    unreadCount.value = 0
+    myReservations.value = []
+  }
+}
+
 onMounted(async () => {
   try {
     const [labRes, usageRes] = await Promise.all([
       labApi.list(),
       labApi.usage()
+    ])
+    await Promise.allSettled([
+      fetchHomeDigest(),
+      fetchWeatherSummary()
     ])
     labs.value = labRes.data || []
     usageList.value = usageRes.data?.ranking || []
@@ -202,21 +379,69 @@ onMounted(async () => {
 
 <style scoped>
 .page-header {
+  align-items: center;
+}
+.home-overview {
+  border-radius: 1rem;
+  padding: 1.2rem 1.25rem;
+  background: linear-gradient(140deg, #ecf5ff, #f5f7fa 60%, #f0f9eb);
+  border-color: #d9ecff;
+}
+.overview-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
   gap: 0.75rem;
+  margin-bottom: 0.95rem;
 }
-.page-title {
-  font-size: 1.4rem;
+.overview-title {
+  font-size: 1.15rem;
   font-weight: 700;
   color: #1f2937;
 }
-.page-subtitle {
+.overview-subtitle {
   font-size: 0.82rem;
-  color: #94a3b8;
+  color: #64748b;
   margin-top: 0.25rem;
+}
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.overview-card {
+  background: #ffffffd9;
+  border-radius: 0.85rem;
+  border: 1px solid #e5e7eb;
+  padding: 0.85rem 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-height: 110px;
+}
+.overview-label {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+.overview-value {
+  font-size: 1.35rem;
+  line-height: 1.2;
+  font-weight: 700;
+  color: #2563eb;
+}
+.overview-extra {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+.overview-tip {
+  font-size: 0.86rem;
+  line-height: 1.6;
+  color: #334155;
 }
 .usage-panel {
   display: grid;
@@ -225,8 +450,8 @@ onMounted(async () => {
 }
 .usage-shell {
   background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-  border: 1px solid #edf2f7;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  border-color: #edf2f7;
+  box-shadow: var(--user-shadow-sm);
 }
 .usage-card-left,
 .usage-card-right {
@@ -370,18 +595,9 @@ onMounted(async () => {
   gap: 1rem;
 }
 .lab-card {
-  background: #fff;
   border-radius: 0.9rem;
   padding: 1.25rem;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  border: 1px solid transparent;
-}
-.lab-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(64, 158, 255, 0.15);
-  border-color: #409eff33;
 }
 .lab-card-header {
   display: flex;
@@ -436,6 +652,9 @@ onMounted(async () => {
   gap: 0.25rem;
 }
 @media (max-width: 960px) {
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
   .usage-panel {
     grid-template-columns: 1fr;
   }
