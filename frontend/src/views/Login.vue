@@ -19,6 +19,7 @@
         <el-form-item prop="username">
           <el-input
             v-model="form.username"
+            data-test="login-username"
             placeholder="请输入学号 / 工号"
             size="large"
             :prefix-icon="User"
@@ -28,6 +29,7 @@
           <el-input
             v-model="form.password"
             type="password"
+            data-test="login-password"
             placeholder="请输入密码"
             size="large"
             :prefix-icon="Lock"
@@ -38,6 +40,7 @@
         <el-button
           type="primary"
           size="large"
+          data-test="login-submit"
           :loading="loading"
           class="login-btn"
           @click="handleLogin"
@@ -82,7 +85,7 @@ async function handleLogin() {
     const res = await authApi.login(form)
     userStore.setLoginData(res.data)
     ElMessage.success(`欢迎回来，${res.data.realName}`)
-    const redirect = route.query.redirect || (res.data.role === 1 ? '/admin/workbench' : '/labs')
+    const redirect = route.query.redirect || (res.data.role === 1 ? '/admin/dashboard' : '/labs')
     router.push(redirect)
   } catch (error) {
     // request 拦截器已统一提示错误，这里兜底避免未处理 Promise 异常

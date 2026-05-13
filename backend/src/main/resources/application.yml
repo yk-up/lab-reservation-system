@@ -5,7 +5,7 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/lab_reservation?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
-    password: 12345678
+    password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
     # HikariCP 连接池配置
     hikari:
@@ -37,6 +37,14 @@ jwt:
 # 跨域允许（开发环境）
 cors:
   allowed-origins: "http://localhost:5173,http://localhost:3000"
+
+# OpenAPI / Swagger UI（Apifox：URL 导入填 http://host:port/v3/api-docs）
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
 
 logging:
   level:
