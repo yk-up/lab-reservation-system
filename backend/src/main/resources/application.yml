@@ -45,16 +45,9 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     enabled: true
+    tags-sorter: alpha
+    operations-sorter: alpha
 
 logging:
   level:
     com.lab.reservation: debug
-
-# OpenAPI（Swagger UI：/swagger-ui.html ，文档：/v3/api-docs）
-springdoc:
-  api-docs:
-    path: /v3/api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    tags-sorter: alpha
-    operations-sorter: alpha

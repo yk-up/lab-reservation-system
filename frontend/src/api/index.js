@@ -45,17 +45,20 @@ export const noticeApi = {
 
 // ========== 管理员 ==========
 export const adminApi = {
-  dashboard: () => request.get('/admin/dashboard'),
-  /** @param {{ limit?: number }} [params] */
-  dashboardAnnouncements: (params) => request.get('/admin/dashboard-announcements', { params }),
+  dashboard: (config = {}) => request.get('/admin/dashboard', { ...config }),
+  /** @param {{ limit?: number }} [params] @param [axiosConfig] */
+  dashboardAnnouncements: (params, axiosConfig = {}) =>
+    request.get('/admin/dashboard-announcements', { params, ...axiosConfig }),
   /** @param {{ limit?: number }} [params] */
   announcements: (params) => request.get('/admin/announcements', { params }),
   announcementDetail: (id) =>
     request.get(`/admin/announcements/${id}`, { skipErrorToast: true }),
-  labUsage: () => request.get('/admin/lab-usage'),
-  reservationTrend: (params) => request.get('/admin/reservation-trend', { params }),
+  labUsage: (config = {}) => request.get('/admin/lab-usage', { ...config }),
+  reservationTrend: (params, axiosConfig = {}) =>
+    request.get('/admin/reservation-trend', { params, ...axiosConfig }),
   /** 数据大屏：dashboard + usage + trend + 公告预览（管理员） */
-  screenStats: (params) => request.get('/admin/stats/screen', { params }),
+  screenStats: (params, axiosConfig = {}) =>
+    request.get('/admin/stats/screen', { params, ...axiosConfig }),
   /** 审批中心：摘要 + 待审核预览 + 元信息（管理员） */
   approvalCenter: (params) => request.get('/admin/stats/approval-center', { params }),
   blacklist: () => request.get('/admin/blacklist'),

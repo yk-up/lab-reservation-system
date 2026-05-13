@@ -651,6 +651,60 @@ async function confirmReject() {
   }
 }
 
+function mapAnnouncementRows(rows) {
+  if (!Array.isArray(rows)) return []
+  return rows.map(item => {
+    const content = String(item?.content || '').replace(/\s+/g, ' ').trim()
+    return {
+      ...item,
+      publishTime: item?.createTime || item?.publishTime,
+      summary: content.length > 80 ? `${content.slice(0, 80)}...` : content,
+      priority: resolveAnnouncementPriority(item),
+      publisherName: item?.publisherName || '系统管理员'
+    }
+  })
+}
+
+function applyScreenBundle(screen) {
+  const s = screen && typeof screen === 'object' ? screen : {}
+  data.value = s.dashboard || {}
+  usageList.value = ensureArray(s.usage?.ranking, ['list', 'rows'])
+  usageTotal.value = Number(s.usage?.totalReservations) || 0
+  trendSeries.value = ensureArray(s.trend?.series)
+  trendSummary.value = s.trend?.summary || {}
+  const annRows = ensureArray(s.announcementsTop, ['list', 'rows'])
+  announcements.value = mapAnnouncementRows(annRows)
+}
+
+async function loadDashboardMain() {
+  const days = Number(trendRange.value)
+  const opts = { skipErrorToast: true }
+  try {
+    const screenRes = await adminApi.screenStats(
+      { days, announcementLimit: 5 },
+      opts
+    )
+    applyScreenBundle(screenRes.data)
+    return
+  } catch {
+    // 聚合接口不可用（旧后端/404）时降级为多次请求
+  }
+  const [dashRes, usageRes, trendRes, annRes] = await Promise.all([
+    adminApi.dashboard(opts),
+    adminApi.labUsage(opts),
+    adminApi.reservationTrend({ days }, opts),
+    adminApi.dashboardAnnouncements({ limit: 5 }, opts)
+  ])
+  data.value = dashRes.data || {}
+  usageList.value = ensureArray(usageRes.data?.ranking, ['list', 'rows'])
+  usageTotal.value = Number(usageRes.data?.totalReservations) || 0
+  trendSeries.value = ensureArray(trendRes.data?.series)
+  trendSummary.value = trendRes.data?.summary || {}
+  const rawAnn = annRes.data
+  const annRows = Array.isArray(rawAnn) ? rawAnn : ensureArray(rawAnn, ['list', 'rows'])
+  announcements.value = mapAnnouncementRows(annRows)
+}
+
 async function loadTrend() {
   const res = await adminApi.reservationTrend({ days: Number(trendRange.value) })
   trendSeries.value = ensureArray(res.data?.series)
@@ -662,35 +716,21 @@ onMounted(async () => {
     now.value = dayjs()
   }, 1000)
   try {
-    const [screenRes, pendingRes] = await Promise.all([
-      adminApi.screenStats({ days: Number(trendRange.value), announcementLimit: 5 }),
-      reservationApi.pending()
-    ])
-    const screen = screenRes.data || {}
-    data.value = screen.dashboard || {}
-    pendingList.value = ensureArray(pendingRes.data, ['list', 'rows'])
-    usageList.value = ensureArray(screen.usage?.ranking, ['list', 'rows'])
-    usageTotal.value = Number(screen.usage?.totalReservations) || 0
-    trendSeries.value = ensureArray(screen.trend?.series)
-    trendSummary.value = screen.trend?.summary || {}
-    const annRows = ensureArray(screen.announcementsTop, ['list', 'rows'])
-    announcements.value = annRows.map(item => {
-      const content = String(item?.content || '').replace(/\s+/g, ' ').trim()
-      return {
-        ...item,
-        publishTime: item?.createTime || item?.publishTime,
-        summary: content.length > 80 ? `${content.slice(0, 80)}...` : content,
-        priority: resolveAnnouncementPriority(item),
-        publisherName: item?.publisherName || '系统管理员'
-      }
-    })
+    await loadDashboardMain()
   } catch (error) {
-    pendingList.value = []
+    data.value = {}
     usageList.value = []
+    usageTotal.value = 0
     trendSeries.value = []
     trendSummary.value = {}
     announcements.value = []
-    ElMessage.error(error?.message || '加载看板数据失败')
+    ElMessage.error(error?.message || '加载大屏数据失败，请确认已登录管理员且后端已更新')
+  }
+  try {
+    const pendingRes = await reservationApi.pending()
+    pendingList.value = ensureArray(pendingRes.data, ['list', 'rows'])
+  } catch {
+    pendingList.value = []
   }
 })
 onBeforeUnmount(() => {
