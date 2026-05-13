@@ -1,10 +1,13 @@
 <template>
   <div class="welcome-carousel user-card">
     <el-carousel
+      ref="carouselRef"
       :interval="interval"
       height="320px"
-      indicator-position="outside"
+      indicator-position="none"
+      :arrow="'hover'"
       class="welcome-carousel__track"
+      @change="onCarouselChange"
     >
       <el-carousel-item v-for="slide in slides" :key="slide.id">
         <div class="welcome-carousel__slide">
@@ -31,10 +34,25 @@
         </div>
       </el-carousel-item>
     </el-carousel>
+    <div class="welcome-carousel__pager" role="tablist" aria-label="轮播场景切换">
+      <button
+        v-for="(slide, index) in slides"
+        :key="slide.id"
+        type="button"
+        class="welcome-carousel__pager-btn"
+        :class="{ 'is-active': activeIndex === index }"
+        :aria-selected="activeIndex === index"
+        :aria-label="slide.pagerLabel || slide.title"
+        @click="goToSlide(index)"
+      >
+        {{ slide.pagerLabel || slide.title }}
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { welcomeCarouselSlides, welcomeCarouselIntervalMs } from '@/config/welcomeCarousel'
 import { useUserStore } from '@/store/user'
@@ -44,6 +62,17 @@ const userStore = useUserStore()
 
 const slides = welcomeCarouselSlides
 const interval = welcomeCarouselIntervalMs
+const carouselRef = ref()
+const activeIndex = ref(0)
+
+function onCarouselChange(index) {
+  activeIndex.value = Number(index)
+}
+
+function goToSlide(index) {
+  activeIndex.value = index
+  carouselRef.value?.setActiveItem?.(index)
+}
 
 function onCta(slide) {
   const action = slide.action
@@ -135,6 +164,37 @@ function onCta(slide) {
   margin-top: 1.25rem;
   font-weight: 600;
 }
+.welcome-carousel__pager {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 0.5rem 0.25rem;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), #fff);
+  border-top: 1px solid #e2e8f0;
+}
+.welcome-carousel__pager-btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.welcome-carousel__pager-btn:hover {
+  border-color: #409eff;
+  color: #2563eb;
+}
+.welcome-carousel__pager-btn.is-active {
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35);
+}
 @media (max-width: 768px) {
   .welcome-carousel__content {
     right: 0;
@@ -143,6 +203,10 @@ function onCta(slide) {
   }
   .welcome-carousel__title {
     font-size: 1.2rem;
+  }
+  .welcome-carousel__pager-btn {
+    flex: 1 1 auto;
+    min-width: 5.5rem;
   }
 }
 </style>

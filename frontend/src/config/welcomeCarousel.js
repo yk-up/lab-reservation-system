@@ -17,6 +17,7 @@ import imageInsights from '@/assets/welcome/carousel-insights.svg'
  * @property {string} title
  * @property {string} description
  * @property {string} buttonText
+ * @property {string} pagerLabel — 底部分页/场景切换文案（与轮播项一一对应）
  * @property {CarouselAction} [action] — 按钮行为；缺省仅展示
  */
 
@@ -25,6 +26,7 @@ export const welcomeCarouselSlides = [
   {
     id: 'smart-booking',
     image: imageSmartBooking,
+    pagerLabel: '智慧预约',
     title: '智慧预约，高效利用实验室资源',
     description: '查看空闲时段、使用率与实验室详情，减少排队与冲突，一站完成预约流程。',
     buttonText: '查看实验室列表',
@@ -33,6 +35,7 @@ export const welcomeCarouselSlides = [
   {
     id: 'my-lab-plan',
     image: imageCollaboration,
+    pagerLabel: '我的预约',
     title: '我的预约，进度尽在掌握',
     description: '随时跟进审核状态与使用安排，重要节点不错过。',
     buttonText: '我的预约',
@@ -41,6 +44,7 @@ export const welcomeCarouselSlides = [
   {
     id: 'notices-reminder',
     image: imageInsights,
+    pagerLabel: '消息通知',
     title: '消息通知，重要提醒不错过',
     description: '审核结果、系统公告与实验室动态集中送达，高效处理待办。',
     buttonText: '查看消息',

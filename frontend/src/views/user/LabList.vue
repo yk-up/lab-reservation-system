@@ -41,7 +41,7 @@
     <div id="lab-list-section" class="page-header user-page-header mb-2">
       <div>
         <h2 class="page-title user-page-title">实验室列表</h2>
-        <p class="page-subtitle user-page-subtitle">浏览实验室信息，并结合使用率参考选择预约对象</p>
+        <p class="page-subtitle user-page-subtitle">支持按关键词、状态、位置、容量筛选与排序（首版本地筛选，不增加后端参数）</p>
       </div>
       <el-input
         v-model="searchText"
@@ -50,6 +50,47 @@
         clearable
         style="width: 220px"
       />
+    </div>
+
+    <div class="lab-filter-toolbar user-card mb-3">
+      <div class="lab-filter-row">
+        <span class="lab-filter-label">状态</span>
+        <el-radio-group v-model="filterStatus" size="small">
+          <el-radio-button label="all">全部</el-radio-button>
+          <el-radio-button label="open">开放中</el-radio-button>
+          <el-radio-button label="closed">已关闭</el-radio-button>
+        </el-radio-group>
+      </div>
+      <div class="lab-filter-row">
+        <span class="lab-filter-label">位置</span>
+        <el-select v-model="filterLocation" placeholder="全部位置" clearable size="small" style="width: 200px">
+          <el-option v-for="loc in locationOptions" :key="loc" :label="loc" :value="loc" />
+        </el-select>
+      </div>
+      <div class="lab-filter-row">
+        <span class="lab-filter-label">容量</span>
+        <el-select v-model="filterCapacityBand" size="small" style="width: 160px">
+          <el-option label="不限" value="all" />
+          <el-option label="≤10 人" value="le10" />
+          <el-option label="11–30 人" value="mid" />
+          <el-option label="30 人以上" value="gt30" />
+        </el-select>
+      </div>
+      <div class="lab-filter-row">
+        <span class="lab-filter-label">排序</span>
+        <el-select v-model="sortBy" size="small" style="width: 160px">
+          <el-option label="名称 A→Z" value="name_asc" />
+          <el-option label="名称 Z→A" value="name_desc" />
+          <el-option label="容量 升序" value="capacity_asc" />
+          <el-option label="容量 降序" value="capacity_desc" />
+        </el-select>
+      </div>
+      <div class="lab-filter-actions">
+        <span v-if="labFilterSummary" class="lab-filter-meta">{{ labFilterSummary }}</span>
+        <el-button size="small" text type="primary" :disabled="!hasActiveFilters" @click="resetLabFilters">
+          重置筛选
+        </el-button>
+      </div>
     </div>
 
     <div class="usage-panel mb-3" v-if="usageList.length">
@@ -119,9 +160,9 @@
         </div>
       </template>
       <template #default>
-        <div class="lab-grid">
+        <div v-if="filteredAndSortedLabs.length" class="lab-grid">
           <div
-            v-for="lab in labs"
+            v-for="lab in filteredAndSortedLabs"
             :key="lab.id"
             class="lab-card user-card user-card-hover"
             @click="goBook(lab)"
@@ -156,14 +197,22 @@
         </div>
 
         <AppEmptyState
-          v-if="labs.length === 0"
-          :type="isSearchEmpty ? 'search' : 'reservation'"
-          :title="isSearchEmpty ? '未找到相关实验室' : '暂无可用实验室'"
-          :description="isSearchEmpty ? `没有找到与“${searchText.trim()}”相关的实验室，试试更换关键词。` : '当前暂时没有可展示的实验室，请稍后再来查看。'"
-          :secondary-action-text="isSearchEmpty ? '清空搜索' : ''"
-          :action-text="isSearchEmpty ? '查看全部实验室' : '返回上一页'"
-          @secondary-action="clearSearch"
-          @action="isSearchEmpty ? clearSearch() : goBack()"
+          v-if="!loading && allLabs.length === 0"
+          type="reservation"
+          title="暂无可用实验室"
+          description="当前暂时没有可展示的实验室，请稍后再来查看。"
+          :action-text="'返回上一页'"
+          @action="goBack()"
+        />
+        <AppEmptyState
+          v-else-if="!loading && allLabs.length > 0 && filteredAndSortedLabs.length === 0"
+          type="search"
+          title="没有符合条件的实验室"
+          description="请尝试放宽或重置筛选条件。"
+          secondary-action-text="重置筛选"
+          action-text="清空关键词"
+          @secondary-action="resetLabFilters"
+          @action="clearSearch"
         />
       </template>
     </el-skeleton>
@@ -171,13 +220,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import request from '@/api/request'
-import { labApi, reservationApi, noticeApi, homeApi } from '@/api'
+import { reservationApi, noticeApi, homeApi } from '@/api'
 import { useUserStore } from '@/store/user'
 import AppEmptyState from '@/components/AppEmptyState.vue'
 import WelcomeCarousel from '@/components/WelcomeCarousel.vue'
@@ -185,17 +234,80 @@ import WelcomeCarousel from '@/components/WelcomeCarousel.vue'
 const router = useRouter()
 const userStore = useUserStore()
 const loading = ref(true)
-const labs = ref([])
+const allLabs = ref([])
 const usageList = ref([])
 const usageTotal = ref(0)
 const searchText = ref('')
+const filterStatus = ref('all')
+const filterLocation = ref('')
+const filterCapacityBand = ref('all')
+const sortBy = ref('name_asc')
 const unreadCount = ref(0)
 const myReservations = ref([])
 const weatherText = ref('天气信息加载中')
 const WEATHER_CACHE_KEY = 'user_home_weather_v1'
 const WEATHER_CACHE_TTL = 15 * 60 * 1000
 
-let searchDebounceTimer = null
+const locationOptions = computed(() => {
+  const set = new Set()
+  for (const lab of allLabs.value) {
+    const loc = String(lab.location || '').trim()
+    if (loc) set.add(loc)
+  }
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'zh-CN'))
+})
+
+function matchesCapacityBand(lab, band) {
+  const c = Number(lab.capacity) || 0
+  if (band === 'all') return true
+  if (band === 'le10') return c <= 10
+  if (band === 'mid') return c >= 11 && c <= 30
+  if (band === 'gt30') return c > 30
+  return true
+}
+
+const filteredAndSortedLabs = computed(() => {
+  let list = [...allLabs.value]
+  const kw = searchText.value.trim().toLowerCase()
+  if (kw) {
+    list = list.filter(lab => {
+      const name = String(lab.name || '').toLowerCase()
+      const loc = String(lab.location || '').toLowerCase()
+      return name.includes(kw) || loc.includes(kw)
+    })
+  }
+  if (filterStatus.value === 'open') list = list.filter(l => l.status === 1)
+  if (filterStatus.value === 'closed') list = list.filter(l => l.status !== 1)
+  if (filterLocation.value) {
+    list = list.filter(l => String(l.location || '').trim() === filterLocation.value)
+  }
+  list = list.filter(l => matchesCapacityBand(l, filterCapacityBand.value))
+
+  const cmpName = (a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'zh-CN')
+  const cmpCap = (a, b) => (Number(a.capacity) || 0) - (Number(b.capacity) || 0)
+  if (sortBy.value === 'name_asc') list.sort(cmpName)
+  else if (sortBy.value === 'name_desc') list.sort((a, b) => -cmpName(a, b))
+  else if (sortBy.value === 'capacity_asc') list.sort(cmpCap)
+  else if (sortBy.value === 'capacity_desc') list.sort((a, b) => -cmpCap(a, b))
+  return list
+})
+
+const hasActiveFilters = computed(
+  () =>
+    !!searchText.value.trim() ||
+    filterStatus.value !== 'all' ||
+    !!filterLocation.value ||
+    filterCapacityBand.value !== 'all' ||
+    sortBy.value !== 'name_asc'
+)
+
+const labFilterSummary = computed(() => {
+  const total = allLabs.value.length
+  const n = filteredAndSortedLabs.value.length
+  if (!total) return ''
+  if (n === total && !hasActiveFilters.value) return `共 ${total} 间`
+  return `展示 ${n} / ${total} 间`
+})
 
 const userDisplayName = computed(() => userStore.realName || '同学')
 const currentHour = dayjs().hour()
@@ -229,10 +341,6 @@ const todayTip = computed(() => {
   return '今日暂无紧急事项，祝你学习顺利。'
 })
 
-const isSearchEmpty = computed(
-  () => !!searchText.value.trim() && labs.value.length === 0 && !loading.value
-)
-
 const maxUsageCount = computed(() => Math.max(...usageList.value.map(item => Number(item.reservationCount) || 0), 1))
 
 function barPercent(item) {
@@ -248,29 +356,16 @@ function rankClass(rank) {
   return ''
 }
 
-async function reloadLabsFromServer() {
-  const kw = searchText.value.trim()
-  const res = await labApi.list(kw ? { keyword: kw } : {})
-  labs.value = res.data || []
+function resetLabFilters() {
+  filterStatus.value = 'all'
+  filterLocation.value = ''
+  filterCapacityBand.value = 'all'
+  sortBy.value = 'name_asc'
+  searchText.value = ''
 }
-
-watch(
-  searchText,
-  () => {
-    if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
-    searchDebounceTimer = setTimeout(async () => {
-      try {
-        await reloadLabsFromServer()
-      } catch {
-        labs.value = []
-      }
-    }, 350)
-  }
-)
 
 function clearSearch() {
   searchText.value = ''
-  reloadLabsFromServer().catch(() => {})
 }
 
 function goBack() {
@@ -382,7 +477,7 @@ async function fetchHomeDigest() {
 onMounted(async () => {
   try {
     const homeRes = await homeApi.overview(undefined, { skipErrorToast: true })
-    labs.value = homeRes.data?.labs || []
+    allLabs.value = homeRes.data?.labs || []
     usageList.value = homeRes.data?.usageStats?.ranking || []
     usageTotal.value = homeRes.data?.usageStats?.totalReservations || 0
   } catch {
@@ -391,12 +486,12 @@ onMounted(async () => {
         request.get('/labs', { skipErrorToast: true }),
         request.get('/labs/usage', { skipErrorToast: true })
       ])
-      labs.value = labRes.data || []
+      allLabs.value = labRes.data || []
       const stats = usageRes.data || {}
       usageList.value = stats.ranking || []
       usageTotal.value = stats.totalReservations || 0
     } catch {
-      labs.value = []
+      allLabs.value = []
       usageList.value = []
       usageTotal.value = 0
       ElMessage.error('加载实验室数据失败，请检查后端是否已启动或稍后重试')
@@ -409,6 +504,36 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.lab-filter-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+}
+.lab-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.lab-filter-label {
+  font-size: 0.78rem;
+  color: #64748b;
+  flex-shrink: 0;
+}
+.lab-filter-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+.lab-filter-meta {
+  font-size: 0.78rem;
+  color: #64748b;
+}
 .page-header {
   align-items: center;
 }
