@@ -176,6 +176,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
+import request from '@/api/request'
 import { labApi, reservationApi, noticeApi, homeApi } from '@/api'
 import { useUserStore } from '@/store/user'
 import AppEmptyState from '@/components/AppEmptyState.vue'
@@ -380,17 +381,28 @@ async function fetchHomeDigest() {
 
 onMounted(async () => {
   try {
-    const homeRes = await homeApi.overview()
-    await Promise.allSettled([fetchHomeDigest(), fetchWeatherSummary()])
+    const homeRes = await homeApi.overview(undefined, { skipErrorToast: true })
     labs.value = homeRes.data?.labs || []
     usageList.value = homeRes.data?.usageStats?.ranking || []
     usageTotal.value = homeRes.data?.usageStats?.totalReservations || 0
-  } catch (error) {
-    labs.value = []
-    usageList.value = []
-    usageTotal.value = 0
-    ElMessage.error(error?.message || '加载实验室数据失败，请稍后重试')
+  } catch {
+    try {
+      const [labRes, usageRes] = await Promise.all([
+        request.get('/labs', { skipErrorToast: true }),
+        request.get('/labs/usage', { skipErrorToast: true })
+      ])
+      labs.value = labRes.data || []
+      const stats = usageRes.data || {}
+      usageList.value = stats.ranking || []
+      usageTotal.value = stats.totalReservations || 0
+    } catch {
+      labs.value = []
+      usageList.value = []
+      usageTotal.value = 0
+      ElMessage.error('加载实验室数据失败，请检查后端是否已启动或稍后重试')
+    }
   } finally {
+    await Promise.allSettled([fetchHomeDigest(), fetchWeatherSummary()])
     loading.value = false
   }
 })

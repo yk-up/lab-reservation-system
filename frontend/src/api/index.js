@@ -8,8 +8,8 @@ export const authApi = {
 
 // ========== 首页（公开聚合） ==========
 export const homeApi = {
-  /** @param {{ keyword?: string, minCapacity?: number, maxCapacity?: number }} [params] */
-  overview: (params) => request.get('/home/overview', { params })
+  /** @param {{ keyword?: string, minCapacity?: number, maxCapacity?: number }} [params] @param [axiosConfig] */
+  overview: (params, axiosConfig = {}) => request.get('/home/overview', { params, ...axiosConfig })
 }
 
 // ========== 实验室 ==========

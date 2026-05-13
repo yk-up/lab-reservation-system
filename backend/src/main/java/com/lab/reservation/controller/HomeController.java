@@ -16,9 +16,12 @@ import java.util.Map;
 
 /**
  * 用户端首页聚合：开放实验室 + 使用率统计，减少首屏请求次数。
+ * 映射由 Spring MVC 完成，IDE「未使用」类/方法提示可忽略。
  */
+@SuppressWarnings("unused")
 @RestController
 @RequestMapping("/api/home")
+@PublicApi
 @RequiredArgsConstructor
 @Tag(name = "首页聚合", description = "公开接口，聚合实验室列表与使用率")
 public class HomeController {
@@ -26,7 +29,6 @@ public class HomeController {
     private final LabService labService;
 
     @GetMapping("/overview")
-    @PublicApi
     @Operation(summary = "首页概览", description = "返回开放实验室列表与使用率统计；筛选参数与 GET /api/labs 一致。")
     public Result<Map<String, Object>> overview(
             @RequestParam(required = false) String keyword,
