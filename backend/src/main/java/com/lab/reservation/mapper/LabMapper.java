@@ -9,6 +9,12 @@ import java.util.Map;
 @Mapper
 public interface LabMapper {
     List<Lab> findAll(@Param("status") Integer status);
+
+    /** 开放实验室（status=1）按关键词与容量筛选 */
+    List<Lab> findOpenFiltered(
+            @Param("keyword") String keyword,
+            @Param("minCapacity") Integer minCapacity,
+            @Param("maxCapacity") Integer maxCapacity);
     int countAll(@Param("status") Integer status);
     Lab findById(@Param("id") Long id);
 

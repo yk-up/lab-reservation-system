@@ -43,7 +43,7 @@
       </div>
       <el-input
         v-model="searchText"
-        placeholder="搜索实验室名称"
+        placeholder="搜索名称或位置"
         :prefix-icon="Search"
         clearable
         style="width: 220px"
@@ -119,7 +119,7 @@
       <template #default>
         <div class="lab-grid">
           <div
-            v-for="lab in filteredLabs"
+            v-for="lab in labs"
             :key="lab.id"
             class="lab-card user-card user-card-hover"
             @click="goBook(lab)"
@@ -154,7 +154,7 @@
         </div>
 
         <AppEmptyState
-          v-if="filteredLabs.length === 0"
+          v-if="labs.length === 0"
           :type="isSearchEmpty ? 'search' : 'reservation'"
           :title="isSearchEmpty ? '未找到相关实验室' : '暂无可用实验室'"
           :description="isSearchEmpty ? `没有找到与“${searchText.trim()}”相关的实验室，试试更换关键词。` : '当前暂时没有可展示的实验室，请稍后再来查看。'"
@@ -169,12 +169,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
-import { labApi, reservationApi, noticeApi } from '@/api'
+import { labApi, reservationApi, noticeApi, homeApi } from '@/api'
 import { useUserStore } from '@/store/user'
 import AppEmptyState from '@/components/AppEmptyState.vue'
 
@@ -190,6 +190,8 @@ const myReservations = ref([])
 const weatherText = ref('天气信息加载中')
 const WEATHER_CACHE_KEY = 'user_home_weather_v1'
 const WEATHER_CACHE_TTL = 15 * 60 * 1000
+
+let searchDebounceTimer = null
 
 const userDisplayName = computed(() => userStore.realName || '同学')
 const currentHour = dayjs().hour()
@@ -223,10 +225,9 @@ const todayTip = computed(() => {
   return '今日暂无紧急事项，祝你学习顺利。'
 })
 
-const filteredLabs = computed(() =>
-  labs.value.filter(lab => !searchText.value || lab.name.includes(searchText.value))
+const isSearchEmpty = computed(
+  () => !!searchText.value.trim() && labs.value.length === 0 && !loading.value
 )
-const isSearchEmpty = computed(() => !!searchText.value.trim() && labs.value.length > 0 && filteredLabs.value.length === 0)
 
 const maxUsageCount = computed(() => Math.max(...usageList.value.map(item => Number(item.reservationCount) || 0), 1))
 
@@ -243,8 +244,29 @@ function rankClass(rank) {
   return ''
 }
 
+async function reloadLabsFromServer() {
+  const kw = searchText.value.trim()
+  const res = await labApi.list(kw ? { keyword: kw } : {})
+  labs.value = res.data || []
+}
+
+watch(
+  searchText,
+  () => {
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+    searchDebounceTimer = setTimeout(async () => {
+      try {
+        await reloadLabsFromServer()
+      } catch {
+        labs.value = []
+      }
+    }, 350)
+  }
+)
+
 function clearSearch() {
   searchText.value = ''
+  reloadLabsFromServer().catch(() => {})
 }
 
 function goBack() {
@@ -355,17 +377,11 @@ async function fetchHomeDigest() {
 
 onMounted(async () => {
   try {
-    const [labRes, usageRes] = await Promise.all([
-      labApi.list(),
-      labApi.usage()
-    ])
-    await Promise.allSettled([
-      fetchHomeDigest(),
-      fetchWeatherSummary()
-    ])
-    labs.value = labRes.data || []
-    usageList.value = usageRes.data?.ranking || []
-    usageTotal.value = usageRes.data?.totalReservations || 0
+    const homeRes = await homeApi.overview()
+    await Promise.allSettled([fetchHomeDigest(), fetchWeatherSummary()])
+    labs.value = homeRes.data?.labs || []
+    usageList.value = homeRes.data?.usageStats?.ranking || []
+    usageTotal.value = homeRes.data?.usageStats?.totalReservations || 0
   } catch (error) {
     labs.value = []
     usageList.value = []

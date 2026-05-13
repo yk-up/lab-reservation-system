@@ -23,7 +23,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/auth/login",
                         "/api/auth/register",
                         "/api/labs/usage",
-                        "/api/labs/*/slots"
+                        "/api/labs/*/slots",
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html"
                 );
     }
 

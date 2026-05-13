@@ -1,7 +1,12 @@
 <template>
   <div>
     <div class="flex-between mb-2 header-row">
-      <h2 class="page-title">预约审核</h2>
+      <div>
+        <h2 class="page-title">预约审核</h2>
+        <p v-if="approvalSummary.pendingCount != null" class="approval-meta">
+          当前待审核 <strong>{{ approvalSummary.pendingCount }}</strong> 条（与数据看板一致）
+        </p>
+      </div>
       <div class="header-actions">
         <el-button @click="loadPendingOnly">仅待审核</el-button>
         <el-button :icon="Refresh" @click="loadData">刷新</el-button>
@@ -235,11 +240,12 @@ import { computed, reactive, ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
-import { reservationApi } from '@/api'
+import { reservationApi, adminApi } from '@/api'
 import AppEmptyState from '@/components/AppEmptyState.vue'
 
 const loading = ref(true)
 const list = ref([])
+const approvalSummary = ref({})
 const rejectVisible = ref(false)
 const rejectReason = ref('')
 const currentItem = ref(null)
@@ -274,6 +280,15 @@ const formatTime = t => (t ? dayjs(t).format('HH:mm') : '-')
 const statusText = s => ['待审核', '已通过', '已拒绝', '已取消', '已完成'][s] ?? '未知'
 const statusTagType = s => ({ 0: 'warning', 1: 'success', 2: 'danger', 3: 'info', 4: '' }[s] || 'info')
 
+async function refreshApprovalSummary() {
+  try {
+    const res = await adminApi.approvalCenter({ pendingPreviewLimit: 1 })
+    approvalSummary.value = res.data?.summary || {}
+  } catch {
+    approvalSummary.value = {}
+  }
+}
+
 async function loadData() {
   loading.value = true
   try {
@@ -289,6 +304,7 @@ async function loadData() {
   } finally {
     loading.value = false
   }
+  await refreshApprovalSummary()
 }
 
 async function loadPendingOnly() {
@@ -299,6 +315,7 @@ async function loadPendingOnly() {
     currentPage.value = 1
     filters.status = 0
     selectedRows.value = []
+    await refreshApprovalSummary()
   } finally {
     loading.value = false
   }
@@ -325,6 +342,7 @@ async function approve(row) {
     await reservationApi.audit(row.id, { status: 1 })
     ElMessage.success('已通过审核，通知已发送给申请人')
     row.status = 1
+    await refreshApprovalSummary()
   } finally {
     processingId.value = ''
   }
@@ -355,6 +373,7 @@ async function confirmReject() {
     currentItem.value.status = 2
     currentItem.value.rejectReason = rejectReason.value
     rejectVisible.value = false
+    await refreshApprovalSummary()
   } finally {
     processingId.value = ''
   }
@@ -403,11 +422,21 @@ async function confirmBatchReject() {
   }
 }
 
-onMounted(loadData)
+onMounted(async () => {
+  await loadData()
+})
 </script>
 
 <style scoped>
 .page-title { font-size: 1.25rem; font-weight: 600; }
+.approval-meta {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: #606266;
+}
+.approval-meta strong {
+  color: #e6a23c;
+}
 .header-row { align-items: center; }
 .header-actions { display: flex; gap: 8px; }
 .filter-card { padding-bottom: 0.25rem; }

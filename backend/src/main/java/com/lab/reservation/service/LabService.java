@@ -24,6 +24,21 @@ public class LabService {
         return labMapper.findAll(1);
     }
 
+    /**
+     * 开放实验室列表；无筛选条件时等价于 {@link #listOpenLabs()}。
+     */
+    public List<Lab> listOpenLabsFiltered(String keyword, Integer minCapacity, Integer maxCapacity) {
+        boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
+        boolean hasCap = minCapacity != null || maxCapacity != null;
+        if (!hasKeyword && !hasCap) {
+            return listOpenLabs();
+        }
+        return labMapper.findOpenFiltered(
+                hasKeyword ? keyword.trim() : null,
+                minCapacity,
+                maxCapacity);
+    }
+
     public List<Lab> listAllLabs() {
         return labMapper.findAll(null);
     }

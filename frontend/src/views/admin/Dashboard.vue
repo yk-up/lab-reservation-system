@@ -657,11 +657,24 @@ async function loadTrend() {
   trendSummary.value = res.data?.summary || {}
 }
 
-async function loadAnnouncements() {
+onMounted(async () => {
+  clockTimer = window.setInterval(() => {
+    now.value = dayjs()
+  }, 1000)
   try {
-    const res = await adminApi.dashboardAnnouncements({ limit: 5 })
-    const rows = ensureArray(res.data, ['list', 'rows'])
-    announcements.value = rows.map(item => {
+    const [screenRes, pendingRes] = await Promise.all([
+      adminApi.screenStats({ days: Number(trendRange.value), announcementLimit: 5 }),
+      reservationApi.pending()
+    ])
+    const screen = screenRes.data || {}
+    data.value = screen.dashboard || {}
+    pendingList.value = ensureArray(pendingRes.data, ['list', 'rows'])
+    usageList.value = ensureArray(screen.usage?.ranking, ['list', 'rows'])
+    usageTotal.value = Number(screen.usage?.totalReservations) || 0
+    trendSeries.value = ensureArray(screen.trend?.series)
+    trendSummary.value = screen.trend?.summary || {}
+    const annRows = ensureArray(screen.announcementsTop, ['list', 'rows'])
+    announcements.value = annRows.map(item => {
       const content = String(item?.content || '').replace(/\s+/g, ' ').trim()
       return {
         ...item,
@@ -671,27 +684,6 @@ async function loadAnnouncements() {
         publisherName: item?.publisherName || '系统管理员'
       }
     })
-  } catch {
-    announcements.value = []
-  }
-}
-
-onMounted(async () => {
-  clockTimer = window.setInterval(() => {
-    now.value = dayjs()
-  }, 1000)
-  try {
-    const [dashRes, pendingRes, usageRes] = await Promise.all([
-      adminApi.dashboard(),
-      reservationApi.pending(),
-      adminApi.labUsage()
-    ])
-    data.value = dashRes.data || {}
-    pendingList.value = ensureArray(pendingRes.data, ['list', 'rows'])
-    usageList.value = ensureArray(usageRes.data?.ranking, ['list', 'rows'])
-    usageTotal.value = Number(usageRes.data?.totalReservations) || 0
-    await loadTrend()
-    await loadAnnouncements()
   } catch (error) {
     pendingList.value = []
     usageList.value = []

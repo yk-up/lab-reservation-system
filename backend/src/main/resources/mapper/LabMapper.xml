@@ -23,6 +23,19 @@
         ORDER BY id ASC
     </select>
 
+    <select id="findOpenFiltered" resultMap="LabMap">
+        SELECT * FROM lab
+        <where>
+            AND status = 1
+            <if test="keyword != null and keyword != ''">
+                AND (name LIKE CONCAT('%', #{keyword}, '%') OR location LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="minCapacity != null">AND capacity &gt;= #{minCapacity}</if>
+            <if test="maxCapacity != null">AND capacity &lt;= #{maxCapacity}</if>
+        </where>
+        ORDER BY id ASC
+    </select>
+
     <select id="countAll" resultType="int">
         SELECT COUNT(*) FROM lab
         <where>

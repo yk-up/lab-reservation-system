@@ -6,9 +6,16 @@ export const authApi = {
   register: (data) => request.post('/auth/register', data)
 }
 
+// ========== 首页（公开聚合） ==========
+export const homeApi = {
+  /** @param {{ keyword?: string, minCapacity?: number, maxCapacity?: number }} [params] */
+  overview: (params) => request.get('/home/overview', { params })
+}
+
 // ========== 实验室 ==========
 export const labApi = {
-  list: () => request.get('/labs'),
+  /** @param {{ keyword?: string, minCapacity?: number, maxCapacity?: number }} [params] */
+  list: (params) => request.get('/labs', { params }),
   listAll: () => request.get('/labs/all'),
   usage: () => request.get('/labs/usage'),
   getSlots: (id, date) => request.get(`/labs/${id}/slots`, { params: { date } }),
@@ -47,6 +54,10 @@ export const adminApi = {
     request.get(`/admin/announcements/${id}`, { skipErrorToast: true }),
   labUsage: () => request.get('/admin/lab-usage'),
   reservationTrend: (params) => request.get('/admin/reservation-trend', { params }),
+  /** 数据大屏：dashboard + usage + trend + 公告预览（管理员） */
+  screenStats: (params) => request.get('/admin/stats/screen', { params }),
+  /** 审批中心：摘要 + 待审核预览 + 元信息（管理员） */
+  approvalCenter: (params) => request.get('/admin/stats/approval-center', { params }),
   blacklist: () => request.get('/admin/blacklist'),
   /** @param {{ keyword: string, limit?: number }} params */
   searchUsers: (params) => request.get('/admin/users/search', { params }),

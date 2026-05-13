@@ -5,6 +5,8 @@ import com.lab.reservation.entity.Lab;
 import com.lab.reservation.service.LabService;
 import com.lab.reservation.util.UserContext;
 import com.lab.reservation.vo.Result;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
@@ -14,20 +16,29 @@ import java.time.LocalDate;
 @RestController
 @RequestMapping("/api/labs")
 @RequiredArgsConstructor
+@Tag(name = "实验室", description = "实验室信息、使用率与时段查询")
 public class LabController {
 
     private final LabService labService;
 
-    /** 获取所有开放实验室（不需要登录） */
+    /**
+     * 获取开放实验室列表（不需要登录）。
+     * 可选：{@code keyword} 匹配名称或位置；{@code minCapacity}/{@code maxCapacity} 按容量区间筛选。
+     */
     @GetMapping
     @PublicApi
-    public Result<?> list() {
-        return Result.success(labService.listOpenLabs());
+    @Operation(summary = "开放实验室列表", description = "支持 keyword（名称/位置）、容量区间筛选；无参数时返回全部开放实验室。")
+    public Result<?> list(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer minCapacity,
+            @RequestParam(required = false) Integer maxCapacity) {
+        return Result.success(labService.listOpenLabsFiltered(keyword, minCapacity, maxCapacity));
     }
 
     /** 实验室使用率统计（用户端展示） */
     @GetMapping("/usage")
     @PublicApi
+    @Operation(summary = "实验室使用率统计", description = "按预约次数汇总排行，匿名可访问。")
     public Result<?> usage() {
         return Result.success(labService.usageStatsSummary());
     }
