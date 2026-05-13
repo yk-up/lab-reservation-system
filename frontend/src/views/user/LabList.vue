@@ -1,5 +1,7 @@
 <template>
   <div class="page-container">
+    <WelcomeCarousel />
+
     <div class="home-overview user-card mb-3">
       <div class="overview-head">
         <div>
@@ -36,7 +38,7 @@
       </div>
     </div>
 
-    <div class="page-header user-page-header mb-2">
+    <div id="lab-list-section" class="page-header user-page-header mb-2">
       <div>
         <h2 class="page-title user-page-title">实验室列表</h2>
         <p class="page-subtitle user-page-subtitle">浏览实验室信息，并结合使用率参考选择预约对象</p>
@@ -177,6 +179,7 @@ import dayjs from 'dayjs'
 import { labApi, reservationApi, noticeApi, homeApi } from '@/api'
 import { useUserStore } from '@/store/user'
 import AppEmptyState from '@/components/AppEmptyState.vue'
+import WelcomeCarousel from '@/components/WelcomeCarousel.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
