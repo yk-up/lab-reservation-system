@@ -77,6 +77,68 @@
           <el-button @click="goTo('/admin/labs')">查看实验室</el-button>
         </div>
       </div>
+
+      <div class="card weather-portal-card">
+        <div class="section-head weather-section-head">
+          <div>
+            <h3 class="section-title">
+              <el-icon style="vertical-align: middle; margin-right: 0.5rem;"><Sunny /></el-icon>
+              天气信息
+            </h3>
+            <p class="section-subtitle">
+              <el-icon style="vertical-align: middle; margin-right: 0.25rem;"><Location /></el-icon>
+              {{ weather.city }} · {{ weather.phenomenon }}
+              <el-tag size="small" type="info" effect="plain" class="weather-source-tag">演示数据</el-tag>
+            </p>
+          </div>
+          <el-button
+            type="primary"
+            link
+            @click="weatherExpanded = !weatherExpanded"
+          >
+            {{ weatherExpanded ? '收起' : '更多' }}
+            <el-icon class="weather-chevron" :class="{ 'is-open': weatherExpanded }" style="margin-left: 0.2rem;">
+              <ArrowDown />
+            </el-icon>
+          </el-button>
+        </div>
+        <div class="weather-main">
+          <div class="weather-icon-wrap" :style="{ background: weather.themeTint }">
+            <el-icon :size="36" :color="weather.themeColor"><Sunny /></el-icon>
+          </div>
+          <div class="weather-body">
+            <div class="weather-temp-row">
+              <span class="weather-temp-now">{{ weather.tempNow }}°</span>
+              <span class="weather-temp-unit">C</span>
+            </div>
+            <div class="weather-phenomenon">{{ weather.phenomenon }}，体感舒适</div>
+            <div class="weather-range">{{ weather.tempMin }}° / {{ weather.tempMax }}° · 今日气温</div>
+          </div>
+        </div>
+        <el-collapse-transition>
+          <div v-show="weatherExpanded" class="weather-extra">
+            <div class="weather-extra-grid">
+              <div class="weather-extra-item">
+                <span class="weather-extra-label">湿度</span>
+                <strong>{{ weather.humidity }}%</strong>
+              </div>
+              <div class="weather-extra-item">
+                <span class="weather-extra-label">气压</span>
+                <strong>{{ weather.pressureHpa }} hPa</strong>
+              </div>
+              <div class="weather-extra-item">
+                <span class="weather-extra-label">风力</span>
+                <strong>{{ weather.windDir }} {{ weather.windScale }}</strong>
+              </div>
+              <div class="weather-extra-item">
+                <span class="weather-extra-label">空气质量</span>
+                <strong>{{ weather.aqiLevel }}</strong>
+              </div>
+            </div>
+            <p class="weather-hint">首版无后端，以上为占位数据；后续可对接第三方气象接口并替换数据源。</p>
+          </div>
+        </el-collapse-transition>
+      </div>
     </section>
 
     <div class="stat-cards mt-3">
@@ -371,7 +433,7 @@
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { Grid, Monitor, Bell, ArrowRight, User, View } from '@element-plus/icons-vue'
+import { Grid, Monitor, Bell, ArrowRight, ArrowDown, User, View, Sunny, Location } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { adminApi, reservationApi } from '@/api'
 import { useUserStore } from '@/store/user'
@@ -392,6 +454,22 @@ const currentRow = ref(null)
 const auditing = ref(false)
 const now = ref(dayjs())
 const announcements = ref([])
+const weatherExpanded = ref(false)
+/** 首版静态天气；后续可改为 fetch 第三方 API（如 Open-Meteo / 和风等） */
+const weather = ref({
+  city: '上海',
+  phenomenon: '晴',
+  tempNow: 24,
+  tempMin: 18,
+  tempMax: 26,
+  humidity: 62,
+  pressureHpa: 1008,
+  windDir: '东南风',
+  windScale: '3 级',
+  aqiLevel: '良',
+  themeColor: '#d97706',
+  themeTint: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)'
+})
 let clockTimer = null
 
 const statCards = [
@@ -693,8 +771,118 @@ onBeforeUnmount(() => {
 }
 .portal-grid {
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
+  grid-template-columns: 1.15fr 0.95fr minmax(260px, 0.9fr);
   gap: 1rem;
+}
+.weather-portal-card {
+  position: relative;
+  overflow: hidden;
+}
+.weather-portal-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #38bdf8, #f59e0b, #fbbf24);
+}
+.weather-section-head .section-subtitle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.weather-source-tag {
+  margin-left: 0.25rem;
+}
+.weather-main {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.25rem 0 0.5rem;
+}
+.weather-icon-wrap {
+  width: 4.25rem;
+  height: 4.25rem;
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+.weather-body {
+  min-width: 0;
+}
+.weather-temp-row {
+  display: flex;
+  align-items: flex-start;
+  line-height: 1;
+}
+.weather-temp-now {
+  font-size: 2.35rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.03em;
+}
+.weather-temp-unit {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-left: 0.15rem;
+  margin-top: 0.35rem;
+}
+.weather-phenomenon {
+  margin-top: 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #334155;
+}
+.weather-range {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+.weather-extra {
+  margin-top: 0.75rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid #e2e8f0;
+}
+.weather-extra-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 1rem;
+}
+.weather-extra-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+.weather-extra-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+.weather-extra-item strong {
+  font-size: 0.9rem;
+  color: #1e293b;
+  font-weight: 600;
+}
+.weather-hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+.weather-chevron {
+  transition: transform 0.2s ease;
+}
+.weather-chevron.is-open {
+  transform: rotate(180deg);
 }
 .quick-apps-card {
   position: relative;
@@ -1299,9 +1487,20 @@ onBeforeUnmount(() => {
   font-size: 0.85rem;
   color: #64748b;
 }
+@media (max-width: 1280px) {
+  .portal-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .weather-portal-card {
+    grid-column: 1 / -1;
+  }
+}
 @media (max-width: 1100px) {
   .portal-grid {
     grid-template-columns: 1fr;
+  }
+  .weather-portal-card {
+    grid-column: auto;
   }
   .usage-section {
     grid-template-columns: 1fr;
